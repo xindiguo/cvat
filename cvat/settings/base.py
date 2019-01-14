@@ -97,7 +97,14 @@ INSTALLED_APPS = [
     'dj_pagination',
     'revproxy',
     'rules',
+    'rest_framework',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated'
+    ]
+}
 
 if 'yes' == os.environ.get('TF_ANNOTATION', 'no'):
     INSTALLED_APPS += ['cvat.apps.tf_annotation']

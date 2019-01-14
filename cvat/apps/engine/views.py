@@ -13,6 +13,10 @@ from django.conf import settings
 from rules.contrib.views import permission_required, objectgetter
 from django.views.decorators.gzip import gzip_page
 from sendfile import sendfile
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework.reverse import reverse
+
 
 from . import annotation, task, models
 from cvat.settings.base import JS_3RDPARTY
@@ -21,6 +25,16 @@ from requests.exceptions import RequestException
 import logging
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice
+
+############################# Server REST API
+
+@api_view(['GET'])
+def api_root(request, format=None):
+    return Response({
+        'users': reverse('user-list', request=request, format=format),
+    })
+
+
 
 ############################# High Level server API
 @login_required
