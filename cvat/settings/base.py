@@ -102,8 +102,11 @@ INSTALLED_APPS = [
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated'
-    ]
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_VERSIONING_CLASS':
+        'rest_framework.versioning.URLPathVersioning',
+    'ALLOWED_VERSIONS': ('v1', ),
 }
 
 if 'yes' == os.environ.get('TF_ANNOTATION', 'no'):
