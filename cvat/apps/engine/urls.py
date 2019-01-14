@@ -6,23 +6,25 @@
 from django.urls import path
 from . import views
 
+REST_API_PREFIX = 'api/<version>/'
+
 urlpatterns = [
-    path('v1', views.api_root), # entry point for API
-    path('v1/tasks/', None), # POST, GET
-    path('v1/tasks/<int:tid>', None), # GET, DELETE, PUT
-    path('v1/tasks/<int:tid>/frames/<int:frame>', None), # GET
-    path('v1/tasks/<int:tid>/jobs/', None), # GET
-    path('v1/jobs/<int:jid>', None), # GET, PUT
-    path('v1/tasks/<int:tid>/annotations/', None), # GET, DELETE, PATCH
-    path('v1/jobs/<int:jid>/annotations/', None), # GET, DELETE, PATCH
-    path('v1/users/', None), # GET
-    path('v1/users/myself', None), # GET
-    path('v1/exceptions/', None), # POST
-    path('v1/info/', None), # GET
-    path('v1/plugins/', None), # GET
-    path('v1/plugins/<slug:name>/config/', None), # GET, PUT
-    path('v1/plugins/<slug:name>/requests/', None), # GET, POST
-    path('v1/plugins/<slug:name>/requests/<int:id>', None), # GET, DELETE
+    path(REST_API_PREFIX, views.api_root), # entry point for API
+    path(REST_API_PREFIX + 'tasks/', None), # GET, POST
+    path(REST_API_PREFIX + 'tasks/<int:tid>', None), # GET, DELETE, PUT
+    path(REST_API_PREFIX + 'tasks/<int:tid>/frames/<int:frame>', None), # GET
+    path(REST_API_PREFIX + 'tasks/<int:tid>/jobs/', None), # GET
+    path(REST_API_PREFIX + 'jobs/<int:jid>', None), # GET, PUT
+    path(REST_API_PREFIX + 'tasks/<int:tid>/annotations/', None), # GET, DELETE, PATCH
+    path(REST_API_PREFIX + 'jobs/<int:jid>/annotations/', None), # GET, DELETE, PATCH
+    path(REST_API_PREFIX + 'users/', None), # GET
+    path(REST_API_PREFIX + 'users/myself', None), # GET
+    path(REST_API_PREFIX + 'exceptions/', None), # POST
+    path(REST_API_PREFIX + 'info/', None), # GET
+    path(REST_API_PREFIX + 'plugins/', None), # GET
+    path(REST_API_PREFIX + 'plugins/<slug:name>/config/', None), # GET, PUT
+    path(REST_API_PREFIX + 'plugins/<slug:name>/requests/', None), # GET, POST
+    path(REST_API_PREFIX + 'plugins/<slug:name>/requests/<int:id>', None), # GET, DELETE
 
     path('create/task', views.create_task), ####
     path('get/task/<int:tid>/frame/<int:frame>', views.get_frame), ###
