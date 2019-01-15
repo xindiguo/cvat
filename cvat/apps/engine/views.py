@@ -13,7 +13,8 @@ from django.conf import settings
 from rules.contrib.views import permission_required, objectgetter
 from django.views.decorators.gzip import gzip_page
 from sendfile import sendfile
-from rest_framework.decorators import api_view
+from rest_framework import generics
+from rest_framework.decorators import api_view, APIView
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 
@@ -24,19 +25,48 @@ from cvat.apps.authentication.decorators import login_required
 from requests.exceptions import RequestException
 import logging
 from .log import slogger, clogger
-from cvat.apps.engine.models import StatusChoice
+from cvat.apps.engine.models import StatusChoice, Task
+from cvat.apps.engine.serializers import TaskSerializer, UserSerializer
+from django.contrib.auth.models import User
 
-############################# Server REST API
+# Server REST API
+
 
 @api_view(['GET'])
-def api_root(request, format=None):
+def api_root(request, version=None):
     return Response({
-        'users': reverse('user-list', request=request, format=format),
+        'tasks': reverse('task-list', request=request),
+        'users': reverse('user-list', request=request),
+        'myself': reverse('user-myself', request=request),
+        'exceptions': reverse('exception-list', request=request),
+        'info': reverse('server-info', request=request),
+        'plugins': reverse('plugin-list', request=request)
     })
 
 
+class TaskList(generics.ListCreateAPIView):
+    queryset = Task.objects.all()
+    serializer_class = TaskSerializer
 
-############################# High Level server API
+class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Task.objects.all()
+    serializer_class = TaskSerializer
+
+class UserList(generics.ListCreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+class UserDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+@api_view(['GET'])
+def dummy_view(request, version=None, pk=None, frame=None, id=None, name=None):
+    return Response()
+
+# High Level server API
+
+
 @login_required
 @permission_required(perm=['engine.job.access'],
     fn=objectgetter(models.Job, 'jid'), raise_exception=True)
@@ -46,6 +76,7 @@ def catch_client_exception(request, jid):
         clogger.job[jid].error(json.dumps(event))
 
     return HttpResponse()
+
 
 @login_required
 def dispatch_request(request):
@@ -57,6 +88,7 @@ def dispatch_request(request):
         })
     else:
         return redirect('/dashboard/')
+
 
 @login_required
 @permission_required(perm=['engine.task.create'], raise_exception=True)
@@ -89,7 +121,8 @@ def create_task(request):
             data_list = request.FILES.getlist('data')
 
             if len(data_list) > settings.LOCAL_LOAD_MAX_FILES_COUNT:
-                raise Exception('Too many files. Please use download via share')
+                raise Exception(
+                    'Too many files. Please use download via share')
             common_size = 0
             for f in data_list:
                 common_size += f.size
@@ -111,14 +144,16 @@ def create_task(request):
 
         return JsonResponse({'tid': db_task.id})
     except Exception as exc:
-        slogger.glob.error("cannot create task {}".format(params['task_name']), exc_info=True)
+        slogger.glob.error("cannot create task {}".format(
+            params['task_name']), exc_info=True)
         db_task.delete()
         return HttpResponseBadRequest(str(exc))
 
     return JsonResponse({'tid': db_task.id})
 
+
 @login_required
-#@permission_required(perm=['engine.task.access'],
+# @permission_required(perm=['engine.task.access'],
 #    fn=objectgetter(models.Task, 'tid'), raise_exception=True)
 # We have commented lines above because the objectgetter() will raise 404 error in
 # cases when a task creating ends with an error. So an user don't get an actual reason of an error.
@@ -133,9 +168,10 @@ def check_task(request, tid):
 
     return JsonResponse(response)
 
+
 @login_required
 @permission_required(perm=['engine.task.access'],
-    fn=objectgetter(models.Task, 'tid'), raise_exception=True)
+                     fn=objectgetter(models.Task, 'tid'), raise_exception=True)
 def get_frame(request, tid, frame):
     """Stream corresponding from for the task"""
 
@@ -145,12 +181,14 @@ def get_frame(request, tid, frame):
         path = os.path.realpath(task.get_frame_path(tid, frame))
         return sendfile(request, path)
     except Exception as e:
-        slogger.task[tid].error("cannot get frame #{}".format(frame), exc_info=True)
+        slogger.task[tid].error(
+            "cannot get frame #{}".format(frame), exc_info=True)
         return HttpResponseBadRequest(str(e))
+
 
 @login_required
 @permission_required(perm=['engine.task.delete'],
-    fn=objectgetter(models.Task, 'tid'), raise_exception=True)
+                     fn=objectgetter(models.Task, 'tid'), raise_exception=True)
 def delete_task(request, tid):
     """Delete the task"""
     try:
@@ -162,9 +200,10 @@ def delete_task(request, tid):
 
     return HttpResponse()
 
+
 @login_required
 @permission_required(perm=['engine.task.change'],
-    fn=objectgetter(models.Task, 'tid'), raise_exception=True)
+                     fn=objectgetter(models.Task, 'tid'), raise_exception=True)
 def update_task(request, tid):
     """Update labels for the task"""
     try:
@@ -177,9 +216,10 @@ def update_task(request, tid):
 
     return HttpResponse()
 
+
 @login_required
 @permission_required(perm=['engine.task.access'],
-    fn=objectgetter(models.Task, 'tid'), raise_exception=True)
+                     fn=objectgetter(models.Task, 'tid'), raise_exception=True)
 def get_task(request, tid):
     try:
         slogger.task[tid].info("get task request")
@@ -190,9 +230,10 @@ def get_task(request, tid):
 
     return JsonResponse(response, safe=False)
 
+
 @login_required
 @permission_required(perm=['engine.job.access'],
-    fn=objectgetter(models.Job, 'jid'), raise_exception=True)
+                     fn=objectgetter(models.Job, 'jid'), raise_exception=True)
 def get_job(request, jid):
     try:
         slogger.job[jid].info("get job #{} request".format(jid))
@@ -203,23 +244,26 @@ def get_job(request, jid):
 
     return JsonResponse(response, safe=False)
 
+
 @login_required
 @permission_required(perm=['engine.task.access'],
-    fn=objectgetter(models.Task, 'tid'), raise_exception=True)
+                     fn=objectgetter(models.Task, 'tid'), raise_exception=True)
 def dump_annotation(request, tid):
     try:
         slogger.task[tid].info("dump annotation request")
-        annotation.dump(tid, annotation.FORMAT_XML, request.scheme, request.get_host())
+        annotation.dump(tid, annotation.FORMAT_XML,
+                        request.scheme, request.get_host())
     except Exception as e:
         slogger.task[tid].error("cannot dump annotation", exc_info=True)
         return HttpResponseBadRequest(str(e))
 
     return HttpResponse()
 
+
 @login_required
 @gzip_page
 @permission_required(perm=['engine.task.access'],
-    fn=objectgetter(models.Task, 'tid'), raise_exception=True)
+                     fn=objectgetter(models.Task, 'tid'), raise_exception=True)
 def check_annotation(request, tid):
     try:
         slogger.task[tid].info("check annotation")
@@ -234,13 +278,13 @@ def check_annotation(request, tid):
 @login_required
 @gzip_page
 @permission_required(perm=['engine.task.access'],
-    fn=objectgetter(models.Task, 'tid'), raise_exception=True)
+                     fn=objectgetter(models.Task, 'tid'), raise_exception=True)
 def download_annotation(request, tid):
     try:
         slogger.task[tid].info("get dumped annotation")
         db_task = models.Task.objects.get(pk=tid)
         response = sendfile(request, db_task.get_dump_path(), attachment=True,
-            attachment_filename='{}_{}.xml'.format(db_task.id, db_task.name))
+                            attachment_filename='{}_{}.xml'.format(db_task.id, db_task.name))
     except Exception as e:
         slogger.task[tid].error("cannot get dumped annotation", exc_info=True)
         return HttpResponseBadRequest(str(e))
@@ -251,20 +295,22 @@ def download_annotation(request, tid):
 @login_required
 @gzip_page
 @permission_required(perm=['engine.job.access'],
-    fn=objectgetter(models.Job, 'jid'), raise_exception=True)
+                     fn=objectgetter(models.Job, 'jid'), raise_exception=True)
 def get_annotation(request, jid):
     try:
         slogger.job[jid].info("get annotation for {} job".format(jid))
         response = annotation.get(jid)
     except Exception as e:
-        slogger.job[jid].error("cannot get annotation for job {}".format(jid), exc_info=True)
+        slogger.job[jid].error(
+            "cannot get annotation for job {}".format(jid), exc_info=True)
         return HttpResponseBadRequest(str(e))
 
     return JsonResponse(response, safe=False)
 
+
 @login_required
 @permission_required(perm=['engine.job.change'],
-    fn=objectgetter(models.Job, 'jid'), raise_exception=True)
+                     fn=objectgetter(models.Job, 'jid'), raise_exception=True)
 def save_annotation_for_job(request, jid):
     try:
         slogger.job[jid].info("save annotation for {} job".format(jid))
@@ -274,19 +320,23 @@ def save_annotation_for_job(request, jid):
         if 'logs' in data:
             for event in json.loads(data['logs']):
                 clogger.job[jid].info(json.dumps(event))
-        slogger.job[jid].info("annotation have been saved for the {} job".format(jid))
+        slogger.job[jid].info(
+            "annotation have been saved for the {} job".format(jid))
     except RequestException as e:
-        slogger.job[jid].error("cannot send annotation logs for job {}".format(jid), exc_info=True)
+        slogger.job[jid].error(
+            "cannot send annotation logs for job {}".format(jid), exc_info=True)
         return HttpResponseBadRequest(str(e))
     except Exception as e:
-        slogger.job[jid].error("cannot save annotation for job {}".format(jid), exc_info=True)
+        slogger.job[jid].error(
+            "cannot save annotation for job {}".format(jid), exc_info=True)
         return HttpResponseBadRequest(str(e))
 
     return HttpResponse()
 
+
 @login_required
 @permission_required(perm=['engine.task.change'],
-    fn=objectgetter(models.Task, 'tid'), raise_exception=True)
+                     fn=objectgetter(models.Task, 'tid'), raise_exception=True)
 def save_annotation_for_task(request, tid):
     try:
         slogger.task[tid].info("save annotation request")
@@ -298,9 +348,10 @@ def save_annotation_for_task(request, tid):
 
     return HttpResponse()
 
+
 @login_required
 @permission_required(perm=['engine.task.change'],
-    fn=objectgetter(models.Task, 'tid'), raise_exception=True)
+                     fn=objectgetter(models.Task, 'tid'), raise_exception=True)
 def delete_annotation_for_task(request, tid):
     try:
         slogger.task[tid].info("delete annotation request")
@@ -314,7 +365,7 @@ def delete_annotation_for_task(request, tid):
 
 @login_required
 @permission_required(perm=['engine.job.change'],
-    fn=objectgetter(models.Job, 'jid'), raise_exception=True)
+                     fn=objectgetter(models.Job, 'jid'), raise_exception=True)
 def save_job_status(request, jid):
     try:
         data = json.loads(request.body.decode('utf-8'))
@@ -329,13 +380,16 @@ def save_job_status(request, jid):
         return HttpResponseBadRequest(str(e))
     return HttpResponse()
 
+
 @login_required
 def get_username(request):
     response = {'username': request.user.username}
     return JsonResponse(response, safe=False)
 
+
 def rq_handler(job, exc_type, exc_value, tb):
-    job.exc_info = "".join(traceback.format_exception_only(exc_type, exc_value))
+    job.exc_info = "".join(
+        traceback.format_exception_only(exc_type, exc_value))
     job.save()
     module = job.id.split('.')[0]
     if module == 'task':

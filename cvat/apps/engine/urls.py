@@ -9,24 +9,82 @@ from . import views
 REST_API_PREFIX = 'api/<version>/'
 
 urlpatterns = [
-    path(REST_API_PREFIX, views.api_root), # entry point for API
-    path(REST_API_PREFIX + 'tasks/', None), # GET, POST
-    path(REST_API_PREFIX + 'tasks/<int:tid>', None), # GET, DELETE, PATCH
-    path(REST_API_PREFIX + 'tasks/<int:tid>/frames/<int:frame>', None), # GET
-    path(REST_API_PREFIX + 'tasks/<int:tid>/jobs/', None), # GET
-    path(REST_API_PREFIX + 'jobs/<int:jid>', None), # GET, PATCH
-    path(REST_API_PREFIX + 'tasks/<int:tid>/annotations/', None), # GET, DELETE, PATCH, PUT
-    path(REST_API_PREFIX + 'jobs/<int:jid>/annotations/', None), # GET, DELETE, PATCH, PUT
-    path(REST_API_PREFIX + 'users/', None), # GET
-    path(REST_API_PREFIX + 'users/myself', None), # GET
-    path(REST_API_PREFIX + 'exceptions/', None), # POST
-    path(REST_API_PREFIX + 'info/', None), # GET
-    path(REST_API_PREFIX + 'plugins/', None), # GET
-    path(REST_API_PREFIX + 'plugins/<slug:name>/config/', None), # GET, PATCH, PUT
-    path(REST_API_PREFIX + 'plugins/<slug:name>/data/', None), # GET, POST
-    path(REST_API_PREFIX + 'plugins/<slug:name>/data/<int:id>', None), # GET, PATCH, DELETE, PUT
-    path(REST_API_PREFIX + 'plugins/<slug:name>/requests/', None), # GET, POST
-    path(REST_API_PREFIX + 'plugins/<slug:name>/requests/<int:id>', None), # GET, DELETE
+    path( # entry point for API
+        REST_API_PREFIX,
+        views.api_root,
+        name='root'),
+    path( # GET, POST
+        REST_API_PREFIX + 'tasks/',
+        views.TaskList.as_view(),
+        name='task-list'),
+    path( # GET, DELETE, PATCH
+        REST_API_PREFIX + 'tasks/<int:pk>',
+        views.TaskDetail.as_view(),
+        name='task-detail'),
+    path( # GET
+        REST_API_PREFIX + 'tasks/<int:pk>/frames/<int:frame>',
+        views.dummy_view,
+        name='task-frame'),
+    path( # GET
+        REST_API_PREFIX + 'tasks/<int:pk>/jobs/',
+        views.dummy_view,
+        name='job-list'),
+    path( # GET, PATCH
+        REST_API_PREFIX + 'jobs/<int:pk>',
+        views.dummy_view,
+        name='job-detail'),
+    path( # GET, DELETE, PATCH, PUT
+        REST_API_PREFIX + 'tasks/<int:pk>/annotations/',
+        views.dummy_view,
+        name='task-annotations'),
+    path( # GET, DELETE, PATCH, PUT
+        REST_API_PREFIX + 'jobs/<int:pk>/annotations/',
+        views.dummy_view,
+        name='job-annotations'),
+    path( # GET
+        REST_API_PREFIX + 'users/',
+        views.UserList.as_view(),
+        name='user-list'),
+    path( # GET, DELETE, PATCH
+        REST_API_PREFIX + 'users/<int:pk>',
+        views.UserDetail.as_view(),
+        name='user-detail'),
+    path( # GET
+        REST_API_PREFIX + 'users/myself',
+        views.dummy_view,
+        name='user-myself'),
+    path( # POST
+        REST_API_PREFIX + 'exceptions/',
+        views.dummy_view,
+        name='exception-list'),
+    path( # GET
+        REST_API_PREFIX + 'info/',
+        views.dummy_view,
+        name='server-info'),
+    path( # GET
+        REST_API_PREFIX + 'plugins/',
+        views.dummy_view,
+        name='plugin-list'),
+    path( # GET, PATCH, PUT
+        REST_API_PREFIX + 'plugins/<slug:name>/config/',
+        views.dummy_view,
+        name='plugin-config'),
+    path( # GET, POST
+        REST_API_PREFIX + 'plugins/<slug:name>/data/',
+        views.dummy_view,
+        name='plugin-data-list'),
+    path( # GET, PATCH, DELETE, PUT
+        REST_API_PREFIX + 'plugins/<slug:name>/data/<int:id>',
+        views.dummy_view,
+        name='plugin-data-detail'),
+    path( # GET, POST
+        REST_API_PREFIX + 'plugins/<slug:name>/requests/',
+        views.dummy_view,
+        name='plugin-request-list'),
+    path( # GET, DELETE
+        REST_API_PREFIX + 'plugins/<slug:name>/requests/<int:id>',
+        views.dummy_view,
+        name='plugin-request-detail'),
 
     path('create/task', views.create_task), ####
     path('get/task/<int:tid>/frame/<int:frame>', views.get_frame), ###
