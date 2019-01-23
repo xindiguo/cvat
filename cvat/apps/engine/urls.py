@@ -26,28 +26,26 @@ urlpatterns = [
     # POST an exception
     path(REST_API_PREFIX + 'exceptions/', views.ClientException.as_view(),
         name='exception-list'),
-
-
     # GET information about the backend
-    path(REST_API_PREFIX + 'info/', views.dummy_view, name='server-info'),
+    path(REST_API_PREFIX + 'about/', views.About.as_view(), name='about'),
+    # GET a list of jobs for a specific task
+    path(REST_API_PREFIX + 'tasks/<int:pk>/jobs/', views.JobList.as_view(),
+        name='job-list'),
+    # GET and PATCH the specific job
+    path(REST_API_PREFIX + 'jobs/<int:pk>', views.JobDetail.as_view(),
+        name='job-detail'),
 
 
-    path( # GET, POST
-        REST_API_PREFIX + 'tasks/',
-        views.TaskList.as_view(),
+
+
+
+    # GET a list of annotation tasks, POST an annotation task
+    path(REST_API_PREFIX + 'tasks/', views.TaskList.as_view(),
         name='task-list'),
     path( # GET, DELETE, PATCH
         REST_API_PREFIX + 'tasks/<int:pk>',
         views.TaskDetail.as_view(),
         name='task-detail'),
-    path( # GET
-        REST_API_PREFIX + 'tasks/<int:pk>/jobs/',
-        views.dummy_view,
-        name='job-list'),
-    path( # GET, PATCH
-        REST_API_PREFIX + 'jobs/<int:pk>',
-        views.dummy_view,
-        name='job-detail'),
     path( # GET, DELETE, PATCH, PUT
         REST_API_PREFIX + 'tasks/<int:pk>/annotations/',
         views.dummy_view,

@@ -27,13 +27,12 @@ from cvat.apps.authentication.decorators import login_required
 from requests.exceptions import RequestException
 import logging
 from .log import slogger, clogger
-from cvat.apps.engine.models import StatusChoice, Task
+from cvat.apps.engine.models import StatusChoice, Task, Job
 from cvat.apps.engine.serializers import TaskSerializer, UserSerializer,\
-   ExceptionSerializer
+   ExceptionSerializer, AboutSerializer, JobSerializer
 from django.contrib.auth.models import User
 
 # Server REST API
-
 
 @api_view(['GET'])
 def api_root(request, version=None):
@@ -42,7 +41,7 @@ def api_root(request, version=None):
         'users': reverse('user-list', request=request),
         'myself': reverse('user-self', request=request),
         'exceptions': reverse('exception-list', request=request),
-        'info': reverse('server-info', request=request),
+        'about': reverse('about', request=request),
         'plugins': reverse('plugin-list', request=request)
     })
 
@@ -51,11 +50,23 @@ class TaskList(generics.ListCreateAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
 
-
 class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
 
+class JobList(generics.ListAPIView):
+    queryset = Job.objects.all()
+    serializer_class = JobSerializer
+
+    def list(self, request, pk, version=None):
+        queryset = self.queryset.filter(segment__task_id=pk)
+        serializer = JobSerializer(queryset, many=True)
+
+        return Response(serializer.data)
+
+class JobDetail(generics.RetrieveUpdateAPIView):
+    queryset = Job.objects.all()
+    serializer_class = JobSerializer
 
 class UserList(generics.ListCreateAPIView):
     queryset = User.objects.all()
@@ -92,6 +103,7 @@ def get_frame(request, pk, frame, version=None):
 
 
 class ClientException(APIView):
+    serializer_class = ExceptionSerializer
     def post(self, request):
         serializer = ExceptionSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
@@ -107,6 +119,25 @@ class ClientException(APIView):
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+class About(APIView):
+    serializer_class = AboutSerializer
+
+    def get(self, request, version=None):
+        from cvat import __version__ as cvat_version
+        about = {
+            "name": "Computer Vision Annotation Tool",
+            "version": cvat_version,
+            "description": "CVAT is completely re-designed and re-implemented " +
+                "version of Video Annotation Tool from Irvine, California " +
+                "tool. It is free, online, interactive video and image annotation " +
+                "tool for computer vision. It is being used by our team to " +
+                "annotate million of objects with different properties. Many UI " +
+                "and UX decisions are based on feedbacks from professional data " +
+                "annotation team."
+        }
+        serializer = AboutSerializer(data=about)
+        if serializer.is_valid(raise_exception=True):
+            return Response(data=serializer.data)
 
 @api_view(['GET'])
 def dummy_view(request, version=None, pk=None, frame=None, id=None, name=None):
