@@ -9,10 +9,29 @@ from . import views
 REST_API_PREFIX = 'api/<version>/'
 
 urlpatterns = [
-    path( # entry point for API
-        REST_API_PREFIX,
-        views.api_root,
-        name='root'),
+    # entry point for API
+    path(REST_API_PREFIX, views.api_root, name='root'),
+    # GET current active user
+    path(REST_API_PREFIX + 'users/self', views.UserSelf.as_view(),
+        name='user-self'),
+    # GET list of users, POST a new user
+    path(REST_API_PREFIX + 'users/', views.UserList.as_view(),
+        name='user-list'),
+    # GET, DELETE, PATCH the user
+    path(REST_API_PREFIX + 'users/<int:pk>', views.UserDetail.as_view(),
+        name='user-detail'),
+    # GET a frame for a specific task
+    path(REST_API_PREFIX + 'tasks/<int:pk>/frames/<int:frame>',
+        views.get_frame, name='task-frame'),
+    # POST an exception
+    path(REST_API_PREFIX + 'exceptions/', views.ClientException.as_view(),
+        name='exception-list'),
+
+
+    # GET information about the backend
+    path(REST_API_PREFIX + 'info/', views.dummy_view, name='server-info'),
+
+
     path( # GET, POST
         REST_API_PREFIX + 'tasks/',
         views.TaskList.as_view(),
@@ -21,10 +40,6 @@ urlpatterns = [
         REST_API_PREFIX + 'tasks/<int:pk>',
         views.TaskDetail.as_view(),
         name='task-detail'),
-    path( # GET
-        REST_API_PREFIX + 'tasks/<int:pk>/frames/<int:frame>',
-        views.dummy_view,
-        name='task-frame'),
     path( # GET
         REST_API_PREFIX + 'tasks/<int:pk>/jobs/',
         views.dummy_view,
@@ -41,26 +56,6 @@ urlpatterns = [
         REST_API_PREFIX + 'jobs/<int:pk>/annotations/',
         views.dummy_view,
         name='job-annotations'),
-    path( # GET
-        REST_API_PREFIX + 'users/',
-        views.UserList.as_view(),
-        name='user-list'),
-    path( # GET, DELETE, PATCH
-        REST_API_PREFIX + 'users/<int:pk>',
-        views.UserDetail.as_view(),
-        name='user-detail'),
-    path( # GET
-        REST_API_PREFIX + 'users/myself',
-        views.dummy_view,
-        name='user-myself'),
-    path( # POST
-        REST_API_PREFIX + 'exceptions/',
-        views.dummy_view,
-        name='exception-list'),
-    path( # GET
-        REST_API_PREFIX + 'info/',
-        views.dummy_view,
-        name='server-info'),
     path( # GET
         REST_API_PREFIX + 'plugins/',
         views.dummy_view,
@@ -87,7 +82,7 @@ urlpatterns = [
         name='plugin-request-detail'),
 
     path('create/task', views.create_task), ####
-    path('get/task/<int:tid>/frame/<int:frame>', views.get_frame), ###
+    path('get/task/<int:pk>/frame/<int:frame>', views.get_frame), ###
     path('check/task/<int:tid>', views.check_task), ####
     path('delete/task/<int:tid>', views.delete_task), ####
     path('update/task/<int:tid>', views.update_task), ####

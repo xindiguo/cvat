@@ -9,16 +9,25 @@ class TaskSerializer(serializers.ModelSerializer):
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
             'z_order', 'flipped', 'source', 'status')
 
-class GroupSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Group
-        fields = ('name',)
-
 class UserSerializer(serializers.ModelSerializer):
-    groups = GroupSerializer(many=True)
+    groups = serializers.SlugRelatedField(many=True,
+        slug_field='name', queryset=Group.objects.all())
 
     class Meta:
         model = User
-        fields = ('id', 'first_name', 'last_name', 'email', 'is_staff',
-            'is_superuser', 'is_active', 'groups')
-        write_only_fields = ('password', 'date_joined')
+        fields = ('id', 'username', 'first_name', 'last_name', 'email',
+            'groups', 'is_staff', 'is_superuser', 'is_active', 'last_login',
+            'date_joined', 'groups')
+        read_only_fields = ('last_login', 'date_joined')
+        write_only_fields = ('password', )
+
+class ExceptionSerializer(serializers.Serializer):
+    task = serializers.IntegerField()
+    job = serializers.IntegerField()
+    message = serializers.CharField(max_length=1000)
+    filename = serializers.URLField()
+    line = serializers.IntegerField()
+    column = serializers.IntegerField()
+    stack = serializers.CharField(max_length=10000)
+    browser = serializers.CharField(max_length=255)
+    os = serializers.CharField(max_length=255)

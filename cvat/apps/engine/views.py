@@ -17,6 +17,8 @@ from rest_framework import generics
 from rest_framework.decorators import api_view, APIView
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
+from rest_framework.renderers import JSONRenderer
+
 
 
 from . import annotation, task, models
@@ -26,7 +28,8 @@ from requests.exceptions import RequestException
 import logging
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task
-from cvat.apps.engine.serializers import TaskSerializer, UserSerializer
+from cvat.apps.engine.serializers import TaskSerializer, UserSerializer,\
+   ExceptionSerializer
 from django.contrib.auth.models import User
 
 # Server REST API
@@ -37,7 +40,7 @@ def api_root(request, version=None):
     return Response({
         'tasks': reverse('task-list', request=request),
         'users': reverse('user-list', request=request),
-        'myself': reverse('user-myself', request=request),
+        'myself': reverse('user-self', request=request),
         'exceptions': reverse('exception-list', request=request),
         'info': reverse('server-info', request=request),
         'plugins': reverse('plugin-list', request=request)
@@ -48,28 +51,75 @@ class TaskList(generics.ListCreateAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
 
+
 class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
+
 
 class UserList(generics.ListCreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
+
 class UserDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+
+
+class UserSelf(generics.RetrieveAPIView):
+    serializer_class = UserSerializer
+
+    def get_object(self):
+        return self.request.user
+
+
+@login_required
+@permission_required(perm=['engine.task.access'],
+                     fn=objectgetter(models.Task, 'pk'), raise_exception=True)
+def get_frame(request, pk, frame, version=None):
+    """Stream corresponding from for the task"""
+
+    try:
+        # Follow symbol links if the frame is a link on a real image otherwise
+        # mimetype detection inside sendfile will work incorrectly.
+        path = os.path.realpath(task.get_frame_path(pk, frame))
+        return sendfile(request, path)
+    except Exception as e:
+        slogger.task[pk].error(
+            "cannot get frame #{}".format(frame), exc_info=True)
+        return HttpResponseBadRequest(str(e))
+
+
+class ClientException(APIView):
+    def post(self, request):
+        serializer = ExceptionSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            message = JSONRenderer().render(serializer.data)
+            jid = serializer.data["job"]
+            tid = serializer.data["task"]
+            if jid:
+                clogger.job[jid].error(message)
+            elif tid:
+                clogger.task[tid].error(message)
+            else:
+                clogger.glob.error(message)
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 @api_view(['GET'])
 def dummy_view(request, version=None, pk=None, frame=None, id=None, name=None):
     return Response()
 
+
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # High Level server API
 
 
 @login_required
 @permission_required(perm=['engine.job.access'],
-    fn=objectgetter(models.Job, 'jid'), raise_exception=True)
+                     fn=objectgetter(models.Job, 'jid'), raise_exception=True)
 def catch_client_exception(request, jid):
     data = json.loads(request.body.decode('utf-8'))
     for event in data['exceptions']:
@@ -167,23 +217,6 @@ def check_task(request, tid):
         return HttpResponseBadRequest(str(e))
 
     return JsonResponse(response)
-
-
-@login_required
-@permission_required(perm=['engine.task.access'],
-                     fn=objectgetter(models.Task, 'tid'), raise_exception=True)
-def get_frame(request, tid, frame):
-    """Stream corresponding from for the task"""
-
-    try:
-        # Follow symbol links if the frame is a link on a real image otherwise
-        # mimetype detection inside sendfile will work incorrectly.
-        path = os.path.realpath(task.get_frame_path(tid, frame))
-        return sendfile(request, path)
-    except Exception as e:
-        slogger.task[tid].error(
-            "cannot get frame #{}".format(frame), exc_info=True)
-        return HttpResponseBadRequest(str(e))
 
 
 @login_required
