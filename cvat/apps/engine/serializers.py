@@ -1,28 +1,64 @@
 from rest_framework import serializers
-from cvat.apps.engine.models import Task, Job
+from cvat.apps.engine.models import Task, Job, Label, AttributeSpec
 from django.contrib.auth.models import User, Group
 
+class AttributeSerializer(serializers.PrimaryKeyRelatedField, serializers.ModelSerializer):
+    class Meta:
+        model = AttributeSpec
+        fields = ('id', 'text')
+
+class LabelSerializer(serializers.PrimaryKeyRelatedField, serializers.ModelSerializer):
+    attributes = AttributeSerializer(many=True, source='attributespec_set')
+    class Meta:
+        model = Label
+        fields = ('id', 'name', 'attributes')
+
+    def create(self, validated_data):
+        attributes = validated_data.pop('attributes')
+        label = Label.objects.create(**validated_data)
+        for attr in attributes:
+            AttributeSpec.objects.create(label=label, **attr)
+
+        return label
+
+
 class TaskSerializer(serializers.ModelSerializer):
+    labels = LabelSerializer(many=True, source='label_set')
     class Meta:
         model = Task
         fields = ('id', 'name', 'size', 'mode', 'owner', 'assignee',
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
-            'z_order', 'flipped', 'source', 'status')
+            'z_order', 'flipped', 'status', 'labels')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
-            'overlap', 'source', 'status')
+            'overlap', 'status')
 
-class JobSerializer(serializers.ModelSerializer):
+    def create(self, validated_data):
+        labels = validated_data.pop('labels')
+        task = Task.objects.create(**validated_data)
+        for label in labels:
+            Label.objects.create(task=task, **label)
+
+        return task
+
+
+class JobSerializer(serializers.HyperlinkedModelSerializer):
+    task_id = serializers.ReadOnlyField(source="segment.task.id")
+    start_frame = serializers.ReadOnlyField(source="segment.start_frame")
+    stop_frame = serializers.ReadOnlyField(source="segment.stop_frame")
+
     class Meta:
         model = Job
-        fields = ('id', 'assignee', 'status')
+        fields = ('url', 'id', 'assignee', 'status', 'start_frame',
+            'stop_frame', 'max_shape_id', 'task_id')
+        read_only_fields = ('max_shape_id',)
 
-class UserSerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.HyperlinkedModelSerializer):
     groups = serializers.SlugRelatedField(many=True,
         slug_field='name', queryset=Group.objects.all())
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'first_name', 'last_name', 'email',
+        fields = ('url', 'id', 'username', 'first_name', 'last_name', 'email',
             'groups', 'is_staff', 'is_superuser', 'is_active', 'last_login',
             'date_joined', 'groups')
         read_only_fields = ('last_login', 'date_joined')

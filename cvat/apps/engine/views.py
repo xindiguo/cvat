@@ -60,7 +60,8 @@ class JobList(generics.ListAPIView):
 
     def list(self, request, pk, version=None):
         queryset = self.queryset.filter(segment__task_id=pk)
-        serializer = JobSerializer(queryset, many=True)
+        serializer = JobSerializer(queryset, many=True,
+            context={"request": request})
 
         return Response(serializer.data)
 

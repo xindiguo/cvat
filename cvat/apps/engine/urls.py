@@ -11,12 +11,12 @@ REST_API_PREFIX = 'api/<version>/'
 urlpatterns = [
     # entry point for API
     path(REST_API_PREFIX, views.api_root, name='root'),
-    # GET current active user
-    path(REST_API_PREFIX + 'users/self', views.UserSelf.as_view(),
-        name='user-self'),
     # GET list of users, POST a new user
     path(REST_API_PREFIX + 'users/', views.UserList.as_view(),
         name='user-list'),
+    # GET current active user
+    path(REST_API_PREFIX + 'users/self', views.UserSelf.as_view(),
+        name='user-self'),
     # GET, DELETE, PATCH the user
     path(REST_API_PREFIX + 'users/<int:pk>', views.UserDetail.as_view(),
         name='user-detail'),
