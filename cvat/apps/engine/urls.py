@@ -34,18 +34,14 @@ urlpatterns = [
     # GET and PATCH the specific job
     path(REST_API_PREFIX + 'jobs/<int:pk>', views.JobDetail.as_view(),
         name='job-detail'),
-
-
-
-
-
     # GET a list of annotation tasks, POST an annotation task
     path(REST_API_PREFIX + 'tasks/', views.TaskList.as_view(),
         name='task-list'),
     path( # GET, DELETE, PATCH
-        REST_API_PREFIX + 'tasks/<int:pk>',
-        views.TaskDetail.as_view(),
+        REST_API_PREFIX + 'tasks/<int:pk>', views.TaskDetail.as_view(),
         name='task-detail'),
+
+
     path( # GET, DELETE, PATCH, PUT
         REST_API_PREFIX + 'tasks/<int:pk>/annotations/',
         views.dummy_view,

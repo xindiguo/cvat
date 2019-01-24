@@ -2,12 +2,12 @@ from rest_framework import serializers
 from cvat.apps.engine.models import Task, Job, Label, AttributeSpec
 from django.contrib.auth.models import User, Group
 
-class AttributeSerializer(serializers.PrimaryKeyRelatedField, serializers.ModelSerializer):
+class AttributeSerializer(serializers.ModelSerializer):
     class Meta:
         model = AttributeSpec
         fields = ('id', 'text')
 
-class LabelSerializer(serializers.PrimaryKeyRelatedField, serializers.ModelSerializer):
+class LabelSerializer(serializers.ModelSerializer):
     attributes = AttributeSerializer(many=True, source='attributespec_set')
     class Meta:
         model = Label
@@ -21,12 +21,12 @@ class LabelSerializer(serializers.PrimaryKeyRelatedField, serializers.ModelSeria
 
         return label
 
-
 class TaskSerializer(serializers.ModelSerializer):
     labels = LabelSerializer(many=True, source='label_set')
+
     class Meta:
         model = Task
-        fields = ('id', 'name', 'size', 'mode', 'owner', 'assignee',
+        fields = ('url', 'id', 'name', 'size', 'mode', 'owner', 'assignee',
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
             'z_order', 'flipped', 'status', 'labels')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
@@ -41,7 +41,7 @@ class TaskSerializer(serializers.ModelSerializer):
         return task
 
 
-class JobSerializer(serializers.HyperlinkedModelSerializer):
+class JobSerializer(serializers.ModelSerializer):
     task_id = serializers.ReadOnlyField(source="segment.task.id")
     start_frame = serializers.ReadOnlyField(source="segment.start_frame")
     stop_frame = serializers.ReadOnlyField(source="segment.stop_frame")
@@ -52,7 +52,7 @@ class JobSerializer(serializers.HyperlinkedModelSerializer):
             'stop_frame', 'max_shape_id', 'task_id')
         read_only_fields = ('max_shape_id',)
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     groups = serializers.SlugRelatedField(many=True,
         slug_field='name', queryset=Group.objects.all())
 
