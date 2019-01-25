@@ -31,7 +31,7 @@ function initLogger(jobID) {
 
     Logger.setTimeThreshold(Logger.EventType.zoomImage);
 
-    serverRequest('/get/username', function(response) {
+    serverRequest('/api/v1/users/self', function(response) {
         Logger.setUsername(response.username);
     });
 }
