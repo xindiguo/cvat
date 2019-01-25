@@ -76,7 +76,6 @@ urlpatterns = [
         name='plugin-request-detail'),
 
     path('create/task', views.create_task), ####
-    path('get/task/<int:pk>/frame/<int:frame>', views.get_frame), ###
     path('check/task/<int:tid>', views.check_task), ####
     path('delete/task/<int:tid>', views.delete_task), ####
     path('update/task/<int:tid>', views.update_task), ####

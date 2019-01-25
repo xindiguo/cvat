@@ -114,7 +114,7 @@ class FrameProvider extends Listener {
                     image.onload = null;
                     image.onerror = null;
                 };
-                image.src = `get/task/${this._tid}/frame/${frame}`;
+                image.src = `/api/v1/tasks/${this._tid}/frames/${frame}`;
             }.bind(this), 25);
         }
     }
