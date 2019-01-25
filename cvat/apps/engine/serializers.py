@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from cvat.apps.engine.models import Task, Job, Label, AttributeSpec
+from cvat.apps.engine.models import (Task, Job, Label, AttributeSpec,
+    Segment)
+
 from django.contrib.auth.models import User, Group
 
 class AttributeSerializer(serializers.ModelSerializer):
@@ -21,26 +23,6 @@ class LabelSerializer(serializers.ModelSerializer):
 
         return label
 
-class TaskSerializer(serializers.ModelSerializer):
-    labels = LabelSerializer(many=True, source='label_set')
-
-    class Meta:
-        model = Task
-        fields = ('url', 'id', 'name', 'size', 'mode', 'owner', 'assignee',
-            'bug_tracker', 'created_date', 'updated_date', 'overlap',
-            'z_order', 'flipped', 'status', 'labels')
-        read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
-            'overlap', 'status')
-
-    def create(self, validated_data):
-        labels = validated_data.pop('labels')
-        task = Task.objects.create(**validated_data)
-        for label in labels:
-            Label.objects.create(task=task, **label)
-
-        return task
-
-
 class JobSerializer(serializers.ModelSerializer):
     task_id = serializers.ReadOnlyField(source="segment.task.id")
     start_frame = serializers.ReadOnlyField(source="segment.start_frame")
@@ -51,6 +33,39 @@ class JobSerializer(serializers.ModelSerializer):
         fields = ('url', 'id', 'assignee', 'status', 'start_frame',
             'stop_frame', 'max_shape_id', 'task_id')
         read_only_fields = ('max_shape_id',)
+
+class SimpleJobSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Job
+        fields = ('url', 'id', 'assignee', 'status', 'max_shape_id')
+        read_only_fields = ('max_shape_id',)
+
+class SegmentSerializer(serializers.ModelSerializer):
+    jobs = SimpleJobSerializer(many=True, source='job_set')
+
+    class Meta:
+        model = Segment
+        fields = ('start_frame', 'stop_frame', 'jobs')
+
+class TaskSerializer(serializers.ModelSerializer):
+    labels = LabelSerializer(many=True, source='label_set')
+    segments = SegmentSerializer(many=True, source='segment_set', read_only=True)
+
+    class Meta:
+        model = Task
+        fields = ('url', 'id', 'name', 'size', 'mode', 'owner', 'assignee',
+            'bug_tracker', 'created_date', 'updated_date', 'overlap',
+            'segment_size', 'z_order', 'flipped', 'status', 'labels', 'segments')
+        read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
+            'overlap', 'status', 'segment_size')
+
+    def create(self, validated_data):
+        labels = validated_data.pop('labels')
+        task = Task.objects.create(**validated_data)
+        for label in labels:
+            Label.objects.create(task=task, **label)
+
+        return task
 
 class UserSerializer(serializers.ModelSerializer):
     groups = serializers.SlugRelatedField(many=True,
@@ -80,3 +95,7 @@ class AboutSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=128)
     description = serializers.CharField(max_length=2048)
     version = serializers.CharField(max_length=64)
+
+class ImageMetaSerializer(serializers.Serializer):
+    width = serializers.IntegerField()
+    height = serializers.IntegerField()

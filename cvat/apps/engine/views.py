@@ -6,6 +6,7 @@
 import os
 import json
 import traceback
+from ast import literal_eval
 
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
@@ -28,8 +29,8 @@ from requests.exceptions import RequestException
 import logging
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job
-from cvat.apps.engine.serializers import TaskSerializer, UserSerializer,\
-   ExceptionSerializer, AboutSerializer, JobSerializer
+from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
+   ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer)
 from django.contrib.auth.models import User
 
 # Server REST API
@@ -102,6 +103,22 @@ def get_frame(request, pk, frame, version=None):
             "cannot get frame #{}".format(frame), exc_info=True)
         return HttpResponseBadRequest(str(e))
 
+@login_required
+@permission_required(perm=['engine.task.access'],
+    fn=objectgetter(models.Task, 'pk'), raise_exception=True)
+@api_view(['GET'])
+def get_image_meta_cache(request, pk, version=None):
+    try:
+        db_task = models.Task.objects.get(pk=pk)
+        meta_cache_file = open(db_task.get_image_meta_cache_path())
+    except OSError:
+        task.make_image_meta_cache(db_task)
+        meta_cache_file = open(db_task.get_image_meta_cache_path())
+
+    data = literal_eval(meta_cache_file.read())
+    serializer = ImageMetaSerializer(many=True, data=data['original_size'])
+    if serializer.is_valid(raise_exception=True):
+        return Response(serializer.data)
 
 class ClientException(APIView):
     serializer_class = ExceptionSerializer

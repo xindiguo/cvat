@@ -40,6 +40,10 @@ urlpatterns = [
     path( # GET, DELETE, PATCH
         REST_API_PREFIX + 'tasks/<int:pk>', views.TaskDetail.as_view(),
         name='task-detail'),
+    # GET meta information for all frames
+    path(REST_API_PREFIX + 'tasks/<int:pk>/frames/meta',
+        views.get_image_meta_cache, name='image-meta-cache'),
+
 
 
     path( # GET, DELETE, PATCH, PUT

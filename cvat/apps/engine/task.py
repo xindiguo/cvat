@@ -301,7 +301,7 @@ class _FrameExtractor:
             yield self[i]
             i += 1
 
-def _make_image_meta_cache(db_task):
+def make_image_meta_cache(db_task):
     with open(db_task.get_image_meta_cache_path(), 'w') as meta_file:
         cache = {
             'original_size': []
@@ -338,7 +338,7 @@ def get_image_meta_cache(db_task):
         with open(db_task.get_image_meta_cache_path()) as meta_cache_file:
             return literal_eval(meta_cache_file.read())
     except Exception:
-        _make_image_meta_cache(db_task)
+        make_image_meta_cache(db_task)
         with open(db_task.get_image_meta_cache_path()) as meta_cache_file:
             return literal_eval(meta_cache_file.read())
 
