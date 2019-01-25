@@ -606,6 +606,7 @@ def _save_task_to_db(db_task, task_params):
     db_task.z_order = task_params['z_order']
     db_task.flipped = task_params['flip']
     db_task.source = task_params['data']
+    db_task.segment_size = min(db_task.size, task_params['segment'])
 
     segment_step = task_params['segment'] - db_task.overlap
     for x in range(0, db_task.size, segment_step):
