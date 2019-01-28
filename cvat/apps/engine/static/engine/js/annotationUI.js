@@ -554,8 +554,8 @@ function setupMenu(job, shapeCollectionModel, annotationParser, aamModel, player
     $('#statFlipped').text(job.flipped);
     $('#statTaskStatus').prop("value", job.status).on('change', (e) => {
         $.ajax({
-            type: 'POST',
-            url: 'save/status/job/' + window.cvat.job.id,
+            type: 'PATCH',
+            url: '/api/v1/jobs/' + window.cvat.job.id,
             data: JSON.stringify({
                 status: e.target.value
             }),

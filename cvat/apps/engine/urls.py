@@ -83,7 +83,6 @@ urlpatterns = [
     path('check/task/<int:tid>', views.check_task), ####
     path('delete/task/<int:tid>', views.delete_task), ####
     path('update/task/<int:tid>', views.update_task), ####
-    path('get/job/<int:jid>', views.get_job), ###
     path('dump/annotation/task/<int:tid>', views.dump_annotation), ###
     path('check/annotation/task/<int:tid>', views.check_annotation), ###
     path('download/annotation/task/<int:tid>', views.download_annotation), ###
@@ -92,7 +91,6 @@ urlpatterns = [
     path('delete/annotation/task/<int:tid>', views.delete_annotation_for_task), ###
     path('get/annotation/job/<int:jid>', views.get_annotation), ###
     path('save/exception/<int:jid>', views.catch_client_exception), ###
-    path('save/status/job/<int:jid>', views.save_job_status), ###
 
     path('', views.dispatch_request),
 ]

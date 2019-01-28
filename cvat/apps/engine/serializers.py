@@ -1,3 +1,7 @@
+# Copyright (C) 2019 Intel Corporation
+#
+# SPDX-License-Identifier: MIT
+
 from rest_framework import serializers
 from cvat.apps.engine.models import (Task, Job, Label, AttributeSpec,
     Segment)
