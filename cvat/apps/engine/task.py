@@ -228,7 +228,7 @@ def get_job(jid):
 
         # Truncate extra image sizes
         if db_task.mode == 'annotation':
-            im_meta_data['original_size'] = im_meta_data['original_size'][db_segment.start_frame:db_segment.stop_frame + 1]
+            im_meta_data = im_meta_data['original_size'][db_segment.start_frame:db_segment.stop_frame + 1]
 
         db_labels = db_task.label_set.prefetch_related('attributespec_set').order_by('-pk').all()
         attributes = {}

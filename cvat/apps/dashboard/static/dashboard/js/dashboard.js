@@ -122,17 +122,27 @@ function uploadAnnotationRequest() {
     function parseFile(e, overlay) {
         let xmlText = e.target.result;
         overlay.setMessage("Request task data from server..");
-        $.ajax({
-            url: "/get/task/" + window.cvat.dashboard.taskID,
-            success: function(data) {
+        $.when(
+            $.get("/api/v1/tasks/" + window.cvat.dashboard.taskID),
+            $.get("/api/v1/tasks/" + window.cvat.dashboard.taskID + "/frames/meta"),
+        ).then(
+            function(taskInfo, imageMetaCache) {
+                let spec = {"labels": {}, "attributes": {}};
+                for (let label of taskInfo[0].labels) {
+                    spec.labels[label.id] = label.name;
+                    spec.attributes[label.id] = {};
+                    for (let attr of label.attributes) {
+                        spec.attributes[label.id][attr.id] = attr.text;
+                    }
+                }
                 let annotationParser = new AnnotationParser(
                     {
                         start: 0,
-                        stop: data.size,
-                        image_meta_data: data.image_meta_data,
-                        flipped: data.flipped
+                        stop: taskInfo[0].size,
+                        image_meta_data: imageMetaCache[0],
+                        flipped: taskInfo[0].flipped
                     },
-                    new LabelsInfo(data.spec),
+                    new LabelsInfo(spec),
                     new ConstIdGenerator(-1)
                 );
 
@@ -208,13 +218,13 @@ function uploadAnnotationRequest() {
                 overlay.setMessage("File is being parsed..");
                 setTimeout(asyncParse);
             },
-            error: function(response) {
+            function(response) {
                 overlay.remove();
                 let message = "Bad task request: " + response.responseText;
                 showMessage(message);
                 throw Error(message);
             }
-        });
+        );
     }
 }
 
@@ -570,9 +580,17 @@ function setupTaskUpdater() {
 
     updateModal[0].loadCurrentLabels = function() {
         $.ajax({
-            url: "/get/task/" + window.cvat.dashboard.taskID,
-            success: function(data) {
-                let labels = new LabelsInfo(data.spec);
+            url: "/api/v1/tasks/" + window.cvat.dashboard.taskID,
+            success: function(taskInfo) {
+                let spec = {"labels": {}, "attributes": {}};
+                for (let label of taskInfo.labels) {
+                    spec.labels[label.id] = label.name;
+                    spec.attributes[label.id] = {};
+                    for (let attr of label.attributes) {
+                        spec.attributes[label.id][attr.id] = attr.text;
+                    }
+                }
+                let labels = new LabelsInfo(spec);
                 oldLabels.attr("value", labels.normalize());
             },
             error: function(response) {
