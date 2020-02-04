@@ -16,7 +16,7 @@ echo "deb http://developer.download.nvidia.com/compute/machine-learning/repos/ub
 
 CUDA_VERSION=9.0.176
 NCCL_VERSION=2.1.15
-CUDNN_VERSION=7.0.5.15
+CUDNN_VERSION=7.6.2.24
 CUDA_PKG_VERSION="9-0=${CUDA_VERSION}-1"
 echo 'export PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}' >> ${HOME}/.bashrc
 echo 'export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:${LD_LIBRARY_PATH}' >> ${HOME}/.bashrc
@@ -30,5 +30,8 @@ apt-get update && apt-get install -y --no-install-recommends --allow-unauthentic
     libnccl2=$NCCL_VERSION-1+cuda9.0 \
     libcudnn7=$CUDNN_VERSION-1+cuda9.0 && \
     ln -s cuda-9.0 /usr/local/cuda && \
-rm -rf /var/lib/apt/lists/* \
+    rm -rf /var/lib/apt/lists/* \
     /etc/apt/sources.list.d/nvidia-ml.list /etc/apt/sources.list.d/cuda.list
+
+python3 -m pip uninstall -y tensorflow
+python3 -m pip install --no-cache-dir tensorflow-gpu==1.13.1

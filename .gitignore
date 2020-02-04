@@ -1,5 +1,6 @@
 # Project Specific
 /data/
+/models/
 /share/
 /static/
 /db.sqlite3
@@ -10,11 +11,16 @@
 /profiles
 /ssh/*
 !/ssh/README.md
-
+node_modules
+/Mask_RCNN/
 
 # Ignore temporary files
 docker-compose.override.yml
-/.vscode
 __pycache__
 *.pyc
 ._*
+
+# Ignore development npm files
+node_modules
+
+.DS_Store

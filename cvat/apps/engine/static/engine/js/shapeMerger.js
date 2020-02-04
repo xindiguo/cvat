@@ -93,7 +93,7 @@ class ShapeMergerModel extends Listener {
 
             let object = {
                 label_id: label,
-                group_id: 0,
+                group: 0,
                 frame: sortedFrames[0],
                 attributes: [],
                 shapes: [],
@@ -135,7 +135,6 @@ class ShapeMergerModel extends Listener {
                 object.shapes.push(
                     Object.assign(shapeDict[frame].interpolation.position,
                         {
-                            z_order: this._collectionModel.zOrder(frame).max,
                             frame: frame,
                             attributes: shapeAttributes
                         }
@@ -150,7 +149,7 @@ class ShapeMergerModel extends Listener {
                     let copy = Object.assign({}, object.shapes[object.shapes.length - 1]);
                     copy.outside = true;
                     copy.frame += 1;
-                    copy.z_order =  this._collectionModel.zOrder(frame).max;
+                    copy.z_order = 0;
                     copy.attributes = [];
                     object.shapes.push(copy);
                 }
@@ -212,7 +211,10 @@ class ShapeMergerModel extends Listener {
 
     click() {
         if (this._mergeMode) {
-            let active = this._collectionModel.selectShape(this._collectionModel.lastPosition, true);
+            const active = this._collectionModel.selectShape(
+                this._collectionModel.lastPosition,
+                true,
+            );
             if (active) {
                 this._pushForMerge(active);
             }

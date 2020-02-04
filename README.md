@@ -1,16 +1,23 @@
 # Computer Vision Annotation Tool (CVAT)
 
 [![Build Status](https://travis-ci.org/opencv/cvat.svg?branch=develop)](https://travis-ci.org/opencv/cvat)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/840351da141e4eaeac6476fd19ec0a33)](https://app.codacy.com/app/nmanovic/cvat?utm_source=github.com&utm_medium=referral&utm_content=opencv/cvat&utm_campaign=Badge_Grade_Settings)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/840351da141e4eaeac6476fd19ec0a33)](https://app.codacy.com/app/cvat/cvat?utm_source=github.com&utm_medium=referral&utm_content=opencv/cvat&utm_campaign=Badge_Grade_Dashboard)
 [![Gitter chat](https://badges.gitter.im/opencv-cvat/gitter.png)](https://gitter.im/opencv-cvat)
+[![Coverage Status](https://coveralls.io/repos/github/opencv/cvat/badge.svg?branch=)](https://coveralls.io/github/opencv/cvat?branch=develop)
+[![codebeat badge](https://codebeat.co/badges/53cd0d16-fddc-46f8-903c-f43ed9abb6dd)](https://codebeat.co/projects/github-com-opencv-cvat-develop)
+[![DOI](https://zenodo.org/badge/139156354.svg)](https://zenodo.org/badge/latestdoi/139156354)
 
-CVAT is completely re-designed and re-implemented version of [Video Annotation Tool from Irvine, California](http://carlvondrick.com/vatic/) tool. It is free, online, interactive video and image annotation tool for computer vision. It is being used by our team to annotate million of objects with different properties. Many UI and UX decisions are based on feedbacks from professional data annotation team.
+CVAT is free, online, interactive video and image annotation tool for computer vision. It is being used by our team to annotate million of objects with different properties. Many UI and UX decisions are based on feedbacks from professional data annotation team.
 
 ![CVAT screenshot](cvat/apps/documentation/static/documentation/images/cvat.jpg)
 
 ## Documentation
 
+- [Installation guide](cvat/apps/documentation/installation.md)
 - [User's guide](cvat/apps/documentation/user_guide.md)
+- [Django REST API documentation](#rest-api)
+- [Datumaro dataset framework](datumaro/README.md)
+- [Command line interface](utils/cli/)
 - [XML annotation format](cvat/apps/documentation/xml_format.md)
 - [AWS Deployment Guide](cvat/apps/documentation/AWS-Deployment-Guide.md)
 - [Questions](#questions)
@@ -23,119 +30,65 @@ CVAT is completely re-designed and re-implemented version of [Video Annotation T
 - [Attribute mode](https://youtu.be/UPNfWl8Egd8)
 - [Segmentation mode](https://youtu.be/Fh8oKuSUIPs)
 - [Tutorial for polygons](https://www.youtube.com/watch?v=XTwfXDh4clI)
+- [Semi-automatic segmentation](https://www.youtube.com/watch?v=vnqXZ-Z-VTQ)
+
+## Supported annotation formats
+
+Format selection is possible after clicking on the Upload annotation / Dump annotation button.
+[Datumaro](datumaro/README.md) dataset framework allows additional dataset transformations
+via its command line tool.
+
+| Annotation format                                                                  | Dumper | Loader |
+| ---------------------------------------------------------------------------------- | ------ | ------ |
+| [CVAT XML v1.1 for images](cvat/apps/documentation/xml_format.md#annotation)       | X      | X      |
+| [CVAT XML v1.1 for a video](cvat/apps/documentation/xml_format.md#interpolation)   | X      | X      |
+| [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/)                              | X      | X      |
+| [YOLO](https://pjreddie.com/darknet/yolo/)                                         | X      | X      |
+| [MS COCO Object Detection](http://cocodataset.org/#format-data)                    | X      | X      |
+| PNG mask                                                                           | X      |        |
+| PNG instance mask                                                                  | X      |        |
+| [TFrecord](https://www.tensorflow.org/tutorials/load_data/tf_records)              | X      | X      |
+| [MOT](https://motchallenge.net/)                                                   | X      | X      |
+| [LabelMe](http://labelme.csail.mit.edu/Release3.0)                                 | X      | X      |
+
+## Links
+- [Intel AI blog: New Computer Vision Tool Accelerates Annotation of Digital Images and Video](https://www.intel.ai/introducing-cvat)
+- [Intel Software: Computer Vision Annotation Tool: A Universal Approach to Data Annotation](https://software.intel.com/en-us/articles/computer-vision-annotation-tool-a-universal-approach-to-data-annotation)
+- [VentureBeat: Intel open-sources CVAT, a toolkit for data labeling](https://venturebeat.com/2019/03/05/intel-open-sources-cvat-a-toolkit-for-data-labeling/)
+
+## Online Demo
+
+[Onepanel](https://www.onepanel.io/) has added CVAT as an environment into their platform and a running demo of CVAT can be accessed at [CVAT Public Demo](https://c.onepanel.io/onepanel-demo/projects/cvat-public-demo/workspaces).
+
+After you click the link above:
+
+- Click on "GO TO WORKSPACE" and the CVAT environment will load up
+- The environment is backed by a K80 GPU
+
+If you have any questions, please contact Onepanel directly at support@onepanel.io. If you are in the Onepanel application, you can also use the chat icon in the bottom right corner.
+
+## REST API
+
+Automatically generated Swagger documentation for Django REST API is
+available on ``<cvat_origin>/api/swagger`` (default: ``localhost:8080/api/swagger``).
 
 ## LICENSE
 
 Code released under the [MIT License](https://opensource.org/licenses/MIT).
 
-## INSTALLATION
-
-The instructions below should work for `Ubuntu 16.04`. It will probably work on other Operating Systems such as `Windows` and `macOS`, but may require minor modifications.
-
-### Install [Docker CE](https://www.docker.com/community-edition) or [Docker EE](https://www.docker.com/enterprise-edition) from official site
-
-Please read official manual [here](https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/).
-
-### Install docker-compose (1.19.0 or newer)
-
-```bash
-sudo pip install docker-compose
-```
-
-### Build docker images
-
-To build all necessary docker images run `docker-compose build` command. By default, in production mode the tool uses PostgreSQL as database, Redis for caching.
-
-### Run docker containers
-
-To start default container run `docker-compose up -d` command. Go to [localhost:8080](http://localhost:8080/). You should see a login page.
-
-### You can include any additional components. Just add corresponding docker-compose file to build or run command:
-
-```bash
-# Build image with CUDA and OpenVINO support
-docker-compose -f docker-compose.yml -f components/cuda/docker-compose.cuda.yml -f components/openvino/docker-compose.openvino.yml build
-
-# Run containers with CUDA and OpenVINO support
-docker-compose -f docker-compose.yml -f components/cuda/docker-compose.cuda.yml -f components/openvino/docker-compose.openvino.yml up -d
-```
-
-### Additional optional components
-
-- [Support for Intel OpenVINO: auto annotation](components/openvino/README.md)
-- [Analytics: management and monitoring of data annotation team](components/analytics/README.md)
-- [TF Object Detection API: auto annotation](components/tf_annotation/README.md)
-- [Support for NVIDIA GPUs](components/cuda/README.md)
-
-### Create superuser account
-
-You can [register a user](http://localhost:8080/auth/register) but by default it will not have rights even to view list of tasks. Thus you should create a superuser. The superuser can use admin panel to assign correct groups to the user. Please use the command below:
-
-```bash
-docker exec -it cvat bash -ic '/usr/bin/python3 ~/manage.py createsuperuser'
-```
-
-Type your login/password for the superuser [on the login page](http://localhost:8080/auth/login) and press **Login** button. Now you should be able to create a new annotation task. Please read documentation for more details.
-
-### Stop all containers
-
-The command below will stop and remove containers, networks, volumes, and images
-created by `up`.
-
-```bash
-docker-compose down
-```
-
-### Advanced settings
-
-If you want to access you instance of CVAT outside of your localhost you should specify [ALLOWED_HOSTS](https://docs.djangoproject.com/en/2.0/ref/settings/#allowed-hosts) environment variable. The best way to do that is to create [docker-compose.override.yml](https://docs.docker.com/compose/extends/) and put all your extra settings here.
-
-```yml
-version: "2.3"
-
-services:
-  cvat:
-    environment:
-      ALLOWED_HOSTS: .example.com
-    ports:
-      - "80:8080"
-```
-### Annotation logs
-
-It is possible to proxy annotation logs from client to ELK. To do that run the following command below:
-
-```bash
-docker-compose -f docker-compose.yml -f components/analytics/docker-compose.analytics.yml up -d --build
-```
-
-
-### Share path
-
-You can use a share storage for data uploading during you are creating a task. To do that you can mount it to CVAT docker container. Example of docker-compose.override.yml for this purpose:
-
-```yml
-version: "2.3"
-
-services:
-  cvat:
-    environment:
-      CVAT_SHARE_URL: "Mounted from /mnt/share host directory"
-    volumes:
-      - cvat_share:/home/django/share:ro
-
-volumes:
-  cvat_share:
-    driver_opts:
-      type: none
-      device: /mnt/share
-      o: bind
-```
-You can change the share device path to your actual share. For user convenience we have defined the enviroment variable $CVAT_SHARE_URL. This variable contains a text (url for example) which will be being shown in the client-share browser.
-
 ## Questions
 
-CVAT usage related questions or unclear concepts can be posted in our [Gitter chat](https://gitter.im/opencv-cvat) for **quick replies** from contributors and other users.
+CVAT usage related questions or unclear concepts can be posted in our
+[Gitter chat](https://gitter.im/opencv-cvat) for **quick replies** from
+contributors and other users.
 
-However, if you have a feature request or a bug report that can reproduced, feel free to open an issue (with steps to reproduce the bug if it's a bug report).
+However, if you have a feature request or a bug report that can reproduced,
+feel free to open an issue (with steps to reproduce the bug if it's a bug
+report) on [GitHub* issues](https://github.com/opencv/cvat/issues).
 
-If you are not sure or just want to browse other users common questions, [Gitter chat](https://gitter.im/opencv-cvat) is the way to go.
+If you are not sure or just want to browse other users common questions,
+[Gitter chat](https://gitter.im/opencv-cvat) is the way to go.
+
+Other ways to ask questions and get our support:
+* [\#cvat](https://stackoverflow.com/search?q=%23cvat) tag on StackOverflow*
+* [Forum on Intel Developer Zone](https://software.intel.com/en-us/forums/computer-vision)

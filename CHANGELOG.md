@@ -4,13 +4,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0.alpha] - 2020-02-XX
 ### Added
-- OpenVINO auto annotation: it is possible to upload a custom model and annotate images automatically.
+- Server only support for projects. Extend REST API v1 (/api/v1/projects*).
+- Ability to [get basic information about users without admin permissions](
+https://github.com/opencv/cvat/issues/750).
+- Changed REST API: removed PUT and added DELETE methods for /api/v1/users/ID.
+- Mask-RCNN Auto Annotation Script in OpenVINO format
+- Yolo Auto Annotation Script
+- Auto segmentation using Mask_RCNN component (Keras+Tensorflow Mask R-CNN Segmentation)
+- Added MOT CSV format support
+- Ability to dump/load annotations in LabelMe format from UI
+- REST API to export an annotation task (images + annotations)
+- Datumaro is an experimental framework to build, analyze, debug and visualize datasets for DL algorithms
+- Text Detection Auto Annoation Script in OpenVINO format for version 4
+- Added in OpenVINO Semantic Segmentation for roads
+- Ability to visualize labels when using Auto Annotation runner
 
 ### Changed
-- Propagation setup has been moved from settings to bottom player panel
-- Additional events like "Debug Info" or "Fit Image" have been added for analitics
+- page_size parameter for all REST API methods
+- React & Redux & Antd based dashboard
+- Yolov3 interpretation script fix and changes to mapping.json
 
 ### Deprecated
 -
@@ -19,10 +33,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -
 
 ### Fixed
-- Django 2.1.5 (security fix, https://nvd.nist.gov/vuln/detail/CVE-2019-3498)
+- [Mask problem on coco json style](https://github.com/opencv/cvat/issues/718)
+- [Exception in Git plugin](https://github.com/opencv/cvat/issues/826)
 
 ### Security
 -
+
+## [0.5.1] - 2019-10-17
+### Added
+- Integration with Zenodo.org (DOI)
+
+## [0.5.0] - 2019-09-12
+### Added
+- A converter to YOLO format
+- Installation guide
+- Linear interpolation for a single point
+- Video frame filter
+- Running functional tests for REST API during a build
+- Admins are no longer limited to a subset of python commands in the auto annotation application
+- Remote data source (list of URLs to create an annotation task)
+- Auto annotation using Faster R-CNN with Inception v2 (utils/open_model_zoo)
+- Auto annotation using Pixel Link mobilenet v2 - text detection (utils/open_model_zoo)
+- Ability to create a custom extractors for unsupported media types
+- Added in PDF extractor
+- Added in a command line model manager tester
+- Ability to dump/load annotations in several formats from UI (CVAT, Pascal VOC, YOLO, MS COCO, png mask, TFRecord)
+- Auth for REST API (api/v1/auth/): login, logout, register, ...
+- Preview for the new CVAT UI (dashboard only) is available: http://localhost:9080/
+- Added command line tool for performing common task operations (/utils/cli/)
+
+### Changed
+- Outside and keyframe buttons in the side panel for all interpolation shapes (they were only for boxes before)
+- Improved error messages on the client side (#511)
+
+### Removed
+- "Flip images" has been removed. UI now contains rotation features.
+
+### Fixed
+- Incorrect width of shapes borders in some cases
+- Annotation parser for tracks with a start frame less than the first segment frame
+- Interpolation on the server near outside frames
+- Dump for case when task name has a slash
+- Auto annotation fail for multijob tasks
+- Installation of CVAT with OpenVINO on the Windows platform
+- Background color was always black in utils/mask/converter.py
+- Exception in attribute annotation mode when a label are switched to a value without any attributes
+- Handling of wrong labelamp json file in auto annotation (<https://github.com/opencv/cvat/issues/554>)
+- No default attributes in dumped annotation (<https://github.com/opencv/cvat/issues/601>)
+- Required field "Frame Filter" on admin page during a task modifying (#666)
+- Dump annotation errors for a task with several segments (#610, #500)
+- Invalid label parsing during a task creating (#628)
+- Button "Open Task" in the annotation view
+- Creating a video task with 0 overlap
+
+### Security
+- Upgraded Django, djangorestframework, and other packages
+
+## [0.4.2] - 2019-06-03
+### Fixed
+- Fixed interaction with the server share in the auto annotation plugin
+
+## [0.4.1] - 2019-05-14
+### Fixed
+- JavaScript syntax incompatibility with Google Chrome versions less than 72
+
+## [0.4.0] - 2019-05-04
+### Added
+- OpenVINO auto annotation: it is possible to upload a custom model and annotate images automatically.
+- Ability to rotate images/video in the client part (Ctrl+R, Shift+Ctrl+R shortcuts) (#305)
+- The ReID application for automatic bounding box merging has been added (#299)
+- Keyboard shortcuts to switch next/previous default shape type (box, polygon etc) [Alt + <, Alt + >] (#316)
+- Converter for VOC now supports interpolation tracks
+- REST API (/api/v1/*, /api/docs)
+- Semi-automatic semantic segmentation with the [Deep Extreme Cut](http://www.vision.ee.ethz.ch/~cvlsegmentation/dextr/) work
+
+### Changed
+- Propagation setup has been moved from settings to bottom player panel
+- Additional events like "Debug Info" or "Fit Image" have been added for analitics
+- Optional using LFS for git annotation storages (#314)
+
+### Deprecated
+- "Flip images" flag in the create task dialog will be removed. Rotation functionality in client part have been added instead.
+
+### Removed
+-
+
+### Fixed
+- Django 2.1.5 (security fix, https://nvd.nist.gov/vuln/detail/CVE-2019-3498)
+- Several scenarious which cause code 400 after undo/redo/save have been fixed (#315)
 
 ## [0.3.0] - 2018-12-29
 ### Added
