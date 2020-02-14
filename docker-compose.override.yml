@@ -1,0 +1,16 @@
+version: "3.2"
+services:
+  cvat:
+    environment:
+      ALLOWED_HOSTS: "10.23.18.137"
+      CVAT_SHARE_URL: "Mounted from /mnt/share host directory"
+    volumes:
+      - cvat_share:/home/django/share:ro
+    ports:
+      - "8082:8080"
+volumes:
+  cvat_share:
+    driver_opts:
+      type: none
+      device: /home/xguo/data
+      o: bind
