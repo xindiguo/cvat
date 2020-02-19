@@ -29,12 +29,11 @@ function CursorControl(props: Props): JSX.Element {
     } = props;
 
     return (
-        <Tooltip overlay='Cursor' placement='right'>
+        <Tooltip title='Cursor' placement='right'>
             <Icon
                 component={CursorIcon}
                 className={activeControl === ActiveControl.CURSOR
-                    ? 'cvat-active-canvas-control' : ''
-                }
+                    ? 'cvat-active-canvas-control' : ''}
                 onClick={
                     activeControl !== ActiveControl.CURSOR
                         ? (): void => canvasInstance.cancel()

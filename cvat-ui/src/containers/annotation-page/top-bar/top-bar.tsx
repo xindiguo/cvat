@@ -1,4 +1,5 @@
 import React from 'react';
+import copy from 'copy-to-clipboard';
 import { connect } from 'react-redux';
 
 import { SliderValue } from 'antd/lib/slider';
@@ -9,6 +10,8 @@ import {
     saveAnnotationsAsync,
     collectStatisticsAsync,
     showStatistics as showStatisticsAction,
+    undoActionAsync,
+    redoActionAsync,
 } from 'actions/annotation-actions';
 
 import AnnotationTopBarComponent from 'components/annotation-page/top-bar/top-bar';
@@ -22,6 +25,8 @@ interface StateToProps {
     saving: boolean;
     canvasIsReady: boolean;
     savingStatuses: string[];
+    undoAction?: string;
+    redoAction?: string;
 }
 
 interface DispatchToProps {
@@ -29,6 +34,8 @@ interface DispatchToProps {
     onSwitchPlay(playing: boolean): void;
     onSaveAnnotation(sessionInstance: any): void;
     showStatistics(sessionInstance: any): void;
+    undo(sessionInstance: any, frameNumber: any): void;
+    redo(sessionInstance: any, frameNumber: any): void;
 }
 
 function mapStateToProps(state: CombinedState): StateToProps {
@@ -45,6 +52,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                     uploading: saving,
                     statuses: savingStatuses,
                 },
+                history,
             },
             job: {
                 instance: jobInstance,
@@ -68,6 +76,8 @@ function mapStateToProps(state: CombinedState): StateToProps {
         savingStatuses,
         frameNumber,
         jobInstance,
+        undoAction: history.undo[history.undo.length - 1],
+        redoAction: history.redo[history.redo.length - 1],
     };
 }
 
@@ -85,6 +95,12 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         showStatistics(sessionInstance: any): void {
             dispatch(collectStatisticsAsync(sessionInstance));
             dispatch(showStatisticsAction(true));
+        },
+        undo(sessionInstance: any, frameNumber: any): void {
+            dispatch(undoActionAsync(sessionInstance, frameNumber));
+        },
+        redo(sessionInstance: any, frameNumber: any): void {
+            dispatch(redoActionAsync(sessionInstance, frameNumber));
         },
     };
 }
@@ -114,6 +130,26 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
             }
         }
     }
+
+    private undo = (): void => {
+        const {
+            undo,
+            jobInstance,
+            frameNumber,
+        } = this.props;
+
+        undo(jobInstance, frameNumber);
+    };
+
+    private redo = (): void => {
+        const {
+            redo,
+            jobInstance,
+            frameNumber,
+        } = this.props;
+
+        redo(jobInstance, frameNumber);
+    };
 
     private showStatistics = (): void => {
         const {
@@ -290,6 +326,16 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
         }
     };
 
+    private onURLIconClick = (): void => {
+        const { frameNumber } = this.props;
+        const {
+            origin,
+            pathname,
+        } = window.location;
+        const url = `${origin}${pathname}?frame=${frameNumber}`;
+        copy(url);
+    };
+
     public render(): JSX.Element {
         const {
             playing,
@@ -300,6 +346,8 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
                 stopFrame,
             },
             frameNumber,
+            undoAction,
+            redoAction,
         } = this.props;
 
         return (
@@ -315,12 +363,17 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
                 onLastFrame={this.onLastFrame}
                 onSliderChange={this.onChangePlayerSliderValue}
                 onInputChange={this.onChangePlayerInputValue}
+                onURLIconClick={this.onURLIconClick}
                 playing={playing}
                 saving={saving}
                 savingStatuses={savingStatuses}
                 startFrame={startFrame}
                 stopFrame={stopFrame}
                 frameNumber={frameNumber}
+                undoAction={undoAction}
+                redoAction={redoAction}
+                onUndoClick={this.undo}
+                onRedoClick={this.redo}
             />
         );
     }

@@ -63,6 +63,11 @@ const defaultState: NotificationsState = {
             propagating: null,
             collectingStatistics: null,
             savingJob: null,
+            uploadAnnotations: null,
+            removeAnnotations: null,
+            fetchingAnnotations: null,
+            undo: null,
+            redo: null,
         },
     },
     messages: {
@@ -629,6 +634,94 @@ export default function (state = defaultState, action: AnyAction): Notifications
                         ...state.errors.annotation,
                         savingJob: {
                             message: 'Could not save the job on the server',
+                            reason: action.payload.error.toString(),
+                        },
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.UPLOAD_JOB_ANNOTATIONS_FAILED: {
+            const {
+                job,
+                error,
+            } = action.payload;
+
+            const {
+                id: jobID,
+                task: {
+                    id: taskID,
+                },
+            } = job;
+
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    annotation: {
+                        ...state.errors.annotation,
+                        uploadAnnotations: {
+                            message: 'Could not upload annotations for the '
+                                + `<a href="/tasks/${taskID}/jobs/${jobID}" target="_blank">job ${taskID}</a>`,
+                            reason: error.toString(),
+                        },
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.REMOVE_JOB_ANNOTATIONS_FAILED: {
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    annotation: {
+                        ...state.errors.annotation,
+                        removeAnnotations: {
+                            message: 'Could not remove annotations',
+                            reason: action.payload.error.toString(),
+                        },
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.FETCH_ANNOTATIONS_FAILED: {
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    annotation: {
+                        ...state.errors.annotation,
+                        fetchingAnnotations: {
+                            message: 'Could not fetch annotations',
+                            reason: action.payload.error.toString(),
+                        },
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.REDO_ACTION_FAILED: {
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    annotation: {
+                        ...state.errors.annotation,
+                        redo: {
+                            message: 'Could not redo',
+                            reason: action.payload.error.toString(),
+                        },
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.UNDO_ACTION_FAILED: {
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    annotation: {
+                        ...state.errors.annotation,
+                        undo: {
+                            message: 'Could not undo',
                             reason: action.payload.error.toString(),
                         },
                     },

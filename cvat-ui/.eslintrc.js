@@ -12,11 +12,13 @@ module.exports = {
     'parserOptions': {
         'parser': '@typescript-eslint/parser',
         'ecmaVersion': 6,
+        'project': './tsconfig.json',
     },
     'plugins': [
         '@typescript-eslint',
         'import',
     ],
+    'ignorePatterns': ['*.svg', '*.scss'],
     'extends': [
         'plugin:@typescript-eslint/recommended',
         'airbnb-typescript',
