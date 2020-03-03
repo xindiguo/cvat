@@ -7,6 +7,7 @@
     require:false
 */
 
+
 (() => {
     const ObjectState = require('./object-state');
     const {
@@ -38,8 +39,6 @@
         objectState.__internal = {
             save: this.save.bind(this, frame, objectState),
             delete: this.delete.bind(this),
-            up: this.up.bind(this, frame, objectState),
-            down: this.down.bind(this, frame, objectState),
         };
 
         return objectState;
@@ -138,9 +137,10 @@
     }
 
     class Annotation {
-        constructor(data, clientID, injection) {
+        constructor(data, clientID, color, injection) {
             this.taskLabels = injection.labels;
             this.history = injection.history;
+            this.groupColors = injection.groupColors;
             this.clientID = clientID;
             this.serverID = data.id;
             this.group = data.group;
@@ -148,11 +148,31 @@
             this.frame = data.frame;
             this.removed = false;
             this.lock = false;
+            this.color = color;
             this.updated = Date.now();
             this.attributes = data.attributes.reduce((attributeAccumulator, attr) => {
                 attributeAccumulator[attr.spec_id] = attr.value;
                 return attributeAccumulator;
             }, {});
+            this.groupObject = Object.defineProperties({}, {
+                color: {
+                    get: () => {
+                        if (this.group) {
+                            return this.groupColors[this.group]
+                                || colors[this.group % colors.length];
+                        }
+                        return defaultGroupColor;
+                    },
+                    set: (newColor) => {
+                        if (this.group && typeof (newColor) === 'string' && /^#[0-9A-F]{6}$/i.test(newColor)) {
+                            this.groupColors[this.group] = newColor;
+                        }
+                    },
+                },
+                id: {
+                    get: () => this.group,
+                },
+            });
             this.appendDefaultAttributes(this.label);
 
             injection.groups.max = Math.max(injection.groups.max, this.group);
@@ -231,61 +251,6 @@
             }, [this.clientID]);
         }
 
-        appendDefaultAttributes(label) {
-            const labelAttributes = label.attributes;
-            for (const attribute of labelAttributes) {
-                if (!(attribute.id in this.attributes)) {
-                    this.attributes[attribute.id] = attribute.defaultValue;
-                }
-            }
-        }
-
-        updateTimestamp(updated) {
-            const anyChanges = updated.label || updated.attributes || updated.points
-                || updated.outside || updated.occluded || updated.keyframe
-                || updated.zOrder;
-
-            if (anyChanges) {
-                this.updated = Date.now();
-            }
-        }
-
-        delete(force) {
-            if (!this.lock || force) {
-                this.removed = true;
-
-                this.history.do(HistoryActions.REMOVED_OBJECT, () => {
-                    this.removed = false;
-                }, () => {
-                    this.removed = true;
-                }, [this.clientID]);
-            }
-
-            return this.removed;
-        }
-    }
-
-    class Drawn extends Annotation {
-        constructor(data, clientID, color, injection) {
-            super(data, clientID, injection);
-
-            this.frameMeta = injection.frameMeta;
-            this.collectionZ = injection.collectionZ;
-            this.hidden = false;
-
-            this.color = color;
-            this.shapeType = null;
-        }
-
-        _getZ(frame) {
-            this.collectionZ[frame] = this.collectionZ[frame] || {
-                max: 0,
-                min: 0,
-            };
-
-            return this.collectionZ[frame];
-        }
-
         _validateStateBeforeSave(frame, data, updated) {
             let fittedPoints = [];
 
@@ -355,9 +320,13 @@
                 checkObjectType('lock', data.lock, 'boolean', null);
             }
 
+            if (updated.pinned) {
+                checkObjectType('pinned', data.pinned, 'boolean', null);
+            }
+
             if (updated.color) {
                 checkObjectType('color', data.color, 'string', null);
-                if (/^#[0-9A-F]{6}$/i.test(data.color)) {
+                if (!/^#[0-9A-F]{6}$/i.test(data.color)) {
                     throw new ArgumentError(
                         `Got invalid color value: "${data.color}"`,
                     );
@@ -370,9 +339,70 @@
 
             if (updated.keyframe) {
                 checkObjectType('keyframe', data.keyframe, 'boolean', null);
+                if (!this.shapes || (Object.keys(this.shapes).length === 1 && !data.keyframe)) {
+                    throw new ArgumentError(
+                        'Can not remove the latest keyframe of an object. Consider removing the object instead',
+                    );
+                }
             }
 
             return fittedPoints;
+        }
+
+        appendDefaultAttributes(label) {
+            const labelAttributes = label.attributes;
+            for (const attribute of labelAttributes) {
+                if (!(attribute.id in this.attributes)) {
+                    this.attributes[attribute.id] = attribute.defaultValue;
+                }
+            }
+        }
+
+        updateTimestamp(updated) {
+            const anyChanges = updated.label || updated.attributes || updated.points
+                || updated.outside || updated.occluded || updated.keyframe
+                || updated.zOrder;
+
+            if (anyChanges) {
+                this.updated = Date.now();
+            }
+        }
+
+        delete(force) {
+            if (!this.lock || force) {
+                this.removed = true;
+
+                this.history.do(HistoryActions.REMOVED_OBJECT, () => {
+                    this.removed = false;
+                }, () => {
+                    this.removed = true;
+                }, [this.clientID]);
+            }
+
+            return this.removed;
+        }
+    }
+
+    class Drawn extends Annotation {
+        constructor(data, clientID, color, injection) {
+            super(data, clientID, color, injection);
+            this.frameMeta = injection.frameMeta;
+            this.hidden = false;
+            this.pinned = true;
+            this.shapeType = null;
+        }
+
+        _savePinned(pinned) {
+            const undoPinned = this.pinned;
+            const redoPinned = pinned;
+
+            this.history.do(HistoryActions.CHANGED_PINNED, () => {
+                this.pinned = undoPinned;
+            }, () => {
+                this.pinned = redoPinned;
+            }, [this.clientID]);
+
+            this.pinned = pinned;
         }
 
         save() {
@@ -392,20 +422,6 @@
                 'Is not implemented',
             );
         }
-
-        // Increase ZOrder within frame
-        up(frame, objectState) {
-            const z = this._getZ(frame);
-            z.max++;
-            objectState.zOrder = z.max;
-        }
-
-        // Decrease ZOrder within frame
-        down(frame, objectState) {
-            const z = this._getZ(frame);
-            z.min--;
-            objectState.zOrder = z.min;
-        }
     }
 
     class Shape extends Drawn {
@@ -414,10 +430,6 @@
             this.points = data.points;
             this.occluded = data.occluded;
             this.zOrder = data.z_order;
-
-            const z = this._getZ(this.frame);
-            z.max = Math.max(z.max, this.zOrder || 0);
-            z.min = Math.min(z.min, this.zOrder || 0);
         }
 
         // Method is used to export data to the server
@@ -462,13 +474,11 @@
                 points: [...this.points],
                 attributes: { ...this.attributes },
                 label: this.label,
-                group: {
-                    color: this.group ? colors[this.group % colors.length] : defaultGroupColor,
-                    id: this.group,
-                },
+                group: this.groupObject,
                 color: this.color,
                 hidden: this.hidden,
                 updated: this.updated,
+                pinned: this.pinned,
                 frame,
             };
         }
@@ -551,6 +561,10 @@
                 this._saveLock(data.lock);
             }
 
+            if (updated.pinned) {
+                this._savePinned(data.pinned);
+            }
+
             if (updated.color) {
                 this._saveColor(data.color);
             }
@@ -581,10 +595,6 @@
                         return attributeAccumulator;
                     }, {}),
                 };
-
-                const z = this._getZ(value.frame);
-                z.max = Math.max(z.max, value.z_order);
-                z.min = Math.min(z.min, value.z_order);
 
                 return shapeAccumulator;
             }, {});
@@ -652,10 +662,7 @@
             return {
                 ...this.getPosition(frame, prev, next),
                 attributes: this.getAttributes(frame),
-                group: {
-                    color: this.group ? colors[this.group % colors.length] : defaultGroupColor,
-                    id: this.group,
-                },
+                group: this.groupObject,
                 objectType: ObjectType.TRACK,
                 shapeType: this.shapeType,
                 clientID: this.clientID,
@@ -665,6 +672,7 @@
                 hidden: this.hidden,
                 updated: this.updated,
                 label: this.label,
+                pinned: this.pinned,
                 keyframes: {
                     prev,
                     next,
@@ -961,7 +969,8 @@
             const current = this.get(frame);
             const wasKeyframe = frame in this.shapes;
 
-            if ((keyframe && wasKeyframe) || (!keyframe && !wasKeyframe)) {
+            if ((keyframe && wasKeyframe)
+                || (!keyframe && !wasKeyframe)) {
                 return;
             }
 
@@ -1003,6 +1012,10 @@
 
             if (updated.lock) {
                 this._saveLock(data.lock);
+            }
+
+            if (updated.pinned) {
+                this._savePinned(data.pinned);
             }
 
             if (updated.color) {
@@ -1064,7 +1077,7 @@
                     points: [...leftPosition.points],
                     occluded: leftPosition.occluded,
                     outside: leftPosition.outside,
-                    zOrder: 0,
+                    zOrder: leftPosition.zOrder,
                     keyframe: targetFrame in this.shapes,
                 };
             }
@@ -1074,21 +1087,21 @@
                     points: [...rightPosition.points],
                     occluded: rightPosition.occluded,
                     outside: true,
-                    zOrder: 0,
+                    zOrder: rightPosition.zOrder,
                     keyframe: targetFrame in this.shapes,
                 };
             }
 
             throw new DataError(
                 'No one left position or right position was found. '
-                + `Interpolation impossible. Client ID: ${this.id}`,
+                + `Interpolation impossible. Client ID: ${this.clientID}`,
             );
         }
     }
 
     class Tag extends Annotation {
-        constructor(data, clientID, injection) {
-            super(data, clientID, injection);
+        constructor(data, clientID, color, injection) {
+            super(data, clientID, color, injection);
         }
 
         // Method is used to export data to the server
@@ -1125,7 +1138,7 @@
                 lock: this.lock,
                 attributes: { ...this.attributes },
                 label: this.label,
-                group: this.group,
+                group: this.groupObject,
                 updated: this.updated,
                 frame,
             };
@@ -1169,6 +1182,7 @@
         constructor(data, clientID, color, injection) {
             super(data, clientID, color, injection);
             this.shapeType = ObjectShape.RECTANGLE;
+            this.pinned = false;
             checkNumberOfPoints(this.shapeType, this.points);
         }
 
@@ -1336,6 +1350,7 @@
         constructor(data, clientID, color, injection) {
             super(data, clientID, color, injection);
             this.shapeType = ObjectShape.RECTANGLE;
+            this.pinned = false;
             for (const shape of Object.values(this.shapes)) {
                 checkNumberOfPoints(this.shapeType, shape.points);
             }

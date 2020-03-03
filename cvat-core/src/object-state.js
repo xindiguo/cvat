@@ -19,10 +19,10 @@
         /**
             * @param {Object} serialized - is an dictionary which contains
             * initial information about an ObjectState;
-            * Necessary fields: objectType, shapeType, frame, updated
-            * Optional fields: points, group, zOrder, outside, occluded, hidden,
-            * attributes, lock, label, mode, color, keyframe, keyframes, clientID, serverID
-            * These fields can be set later via setters
+            * </br> Necessary fields: objectType, shapeType, frame, updated, group
+            * </br> Optional fields: keyframes, clientID, serverID
+            * </br> Optional fields which can be set later: points, zOrder, outside,
+            * occluded, hidden, attributes, lock, label, color, keyframe
         */
         constructor(serialized) {
             const data = {
@@ -38,8 +38,9 @@
                 lock: null,
                 color: null,
                 hidden: null,
-                group: serialized.group,
+                pinned: null,
                 keyframes: serialized.keyframes,
+                group: serialized.group,
                 updated: serialized.updated,
 
                 clientID: serialized.clientID,
@@ -63,6 +64,7 @@
                     this.keyframe = false;
 
                     this.zOrder = false;
+                    this.pinned = false;
                     this.lock = false;
                     this.color = false;
                     this.hidden = false;
@@ -202,7 +204,7 @@
                 zOrder: {
                     /**
                         * @name zOrder
-                        * @type {integer}
+                        * @type {integer | null}
                         * @memberof module:API.cvat.classes.ObjectState
                         * @instance
                     */
@@ -242,15 +244,16 @@
                     /**
                         * Object of keyframes { first, prev, next, last }
                         * @name keyframes
-                        * @type {object}
+                        * @type {object | null}
                         * @memberof module:API.cvat.classes.ObjectState
                         * @readonly
                         * @instance
                     */
                     get: () => {
-                        if (data.keyframes) {
+                        if (typeof (data.keyframes) === 'object') {
                             return { ...data.keyframes };
                         }
+
                         return null;
                     },
                 },
@@ -278,6 +281,25 @@
                     set: (lock) => {
                         data.updateFlags.lock = true;
                         data.lock = lock;
+                    },
+                },
+                pinned: {
+                    /**
+                        * @name pinned
+                        * @type {boolean | null}
+                        * @memberof module:API.cvat.classes.ObjectState
+                        * @instance
+                    */
+                    get: () => {
+                        if (typeof (data.pinned) === 'boolean') {
+                            return data.pinned;
+                        }
+
+                        return null;
+                    },
+                    set: (pinned) => {
+                        data.updateFlags.pinned = true;
+                        data.pinned = pinned;
                     },
                 },
                 updated: {
@@ -320,19 +342,33 @@
             }));
 
             this.label = serialized.label;
-            this.zOrder = serialized.zOrder;
-            this.outside = serialized.outside;
-            this.keyframe = serialized.keyframe;
-            this.occluded = serialized.occluded;
-            this.color = serialized.color;
             this.lock = serialized.lock;
-            this.hidden = serialized.hidden;
 
-            // It can be undefined in a constructor and it can be defined later
-            if (typeof (serialized.points) !== 'undefined') {
+            if (typeof (serialized.zOrder) === 'number') {
+                this.zOrder = serialized.zOrder;
+            }
+            if (typeof (serialized.occluded) === 'boolean') {
+                this.occluded = serialized.occluded;
+            }
+            if (typeof (serialized.outside) === 'boolean') {
+                this.outside = serialized.outside;
+            }
+            if (typeof (serialized.keyframe) === 'boolean') {
+                this.keyframe = serialized.keyframe;
+            }
+            if (typeof (serialized.pinned) === 'boolean') {
+                this.pinned = serialized.pinned;
+            }
+            if (typeof (serialized.hidden) === 'boolean') {
+                this.hidden = serialized.hidden;
+            }
+            if (typeof (serialized.color) === 'string') {
+                this.color = serialized.color;
+            }
+            if (Array.isArray(serialized.points)) {
                 this.points = serialized.points;
             }
-            if (typeof (serialized.attributes) !== 'undefined') {
+            if (typeof (serialized.attributes) === 'object') {
                 this.attributes = serialized.attributes;
             }
 
@@ -372,36 +408,6 @@
                 .apiWrapper.call(this, ObjectState.prototype.delete, force);
             return result;
         }
-
-        /**
-            * Set the highest ZOrder within a frame
-            * @method up
-            * @memberof module:API.cvat.classes.ObjectState
-            * @readonly
-            * @instance
-            * @async
-            * @throws {module:API.cvat.exceptions.PluginError}
-        */
-        async up() {
-            const result = await PluginRegistry
-                .apiWrapper.call(this, ObjectState.prototype.up);
-            return result;
-        }
-
-        /**
-            * Set the lowest ZOrder within a frame
-            * @method down
-            * @memberof module:API.cvat.classes.ObjectState
-            * @readonly
-            * @instance
-            * @async
-            * @throws {module:API.cvat.exceptions.PluginError}
-        */
-        async down() {
-            const result = await PluginRegistry
-                .apiWrapper.call(this, ObjectState.prototype.down);
-            return result;
-        }
     }
 
     // Updates element in collection which contains it
@@ -421,23 +427,6 @@
 
         return false;
     };
-
-    ObjectState.prototype.up.implementation = async function () {
-        if (this.__internal && this.__internal.up) {
-            return this.__internal.up();
-        }
-
-        return false;
-    };
-
-    ObjectState.prototype.down.implementation = async function () {
-        if (this.__internal && this.__internal.down) {
-            return this.__internal.down();
-        }
-
-        return false;
-    };
-
 
     module.exports = ObjectState;
 })();

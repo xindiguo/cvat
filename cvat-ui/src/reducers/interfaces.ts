@@ -1,4 +1,8 @@
-import { Canvas } from 'cvat-canvas';
+// Copyright (C) 2020 Intel Corporation
+//
+// SPDX-License-Identifier: MIT
+
+import { Canvas, RectDrawingMethod } from 'cvat-canvas';
 
 export type StringObject = {
     [index: string]: string;
@@ -88,6 +92,11 @@ export interface UsersState {
 
 export interface AboutState {
     server: any;
+    packageVersion: {
+        core: string;
+        canvas: string;
+        ui: string;
+    };
     fetching: boolean;
     initialized: boolean;
 }
@@ -242,11 +251,6 @@ export enum ActiveControl {
     EDIT = 'edit',
 }
 
-export enum RectDrawingMethod {
-    BY_TWO_POINTS = 'by_two_points',
-    BY_FOUR_POINTS = 'by_four_points'
-}
-
 export enum ShapeType {
     RECTANGLE = 'rectangle',
     POLYGON = 'polygon',
@@ -269,6 +273,11 @@ export enum StatesOrdering {
 export enum ContextMenuType {
     CANVAS = 'canvas',
     CANVAS_SHAPE = 'canvas_shape',
+}
+
+export enum Rotation {
+    ANTICLOCKWISE90,
+    CLOCKWISE90,
 }
 
 export interface AnnotationState {
@@ -300,8 +309,11 @@ export interface AnnotationState {
             number: number;
             data: any | null;
             fetching: boolean;
+            delay: number;
+            changeTime: number | null;
         };
         playing: boolean;
+        frameAngles: number[];
     };
     drawing: {
         activeShapeType: ShapeType;
@@ -316,6 +328,7 @@ export interface AnnotationState {
         collapsed: Record<number, boolean>;
         states: any[];
         filters: string[];
+        filtersHistory: string[];
         history: {
             undo: string[];
             redo: string[];
@@ -323,6 +336,11 @@ export interface AnnotationState {
         saving: {
             uploading: boolean;
             statuses: string[];
+        };
+        zLayer: {
+            min: number;
+            max: number;
+            cur: number;
         };
     };
     propagate: {

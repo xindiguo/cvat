@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+//
+// SPDX-License-Identifier: MIT
+
 import React from 'react';
 import { connect } from 'react-redux';
 
@@ -21,6 +25,8 @@ import {
     activateObject,
     selectObjects,
     updateCanvasContextMenu,
+    addZLayer,
+    switchZLayer,
 } from 'actions/annotation-actions';
 import {
     ColorBy,
@@ -39,6 +45,7 @@ interface StateToProps {
     selectedStatesID: number[];
     annotations: any[];
     frameData: any;
+    frameAngle: number;
     frame: number;
     opacity: number;
     colorBy: ColorBy;
@@ -50,6 +57,13 @@ interface StateToProps {
     gridOpacity: number;
     activeLabelID: number;
     activeObjectType: ObjectType;
+    brightnessLevel: number;
+    contrastLevel: number;
+    saturationLevel: number;
+    resetZoom: boolean;
+    minZLayer: number;
+    maxZLayer: number;
+    curZLayer: number;
 }
 
 interface DispatchToProps {
@@ -70,6 +84,8 @@ interface DispatchToProps {
     onActivateObject: (activatedStateID: number | null) => void;
     onSelectObjects: (selectedStatesID: number[]) => void;
     onUpdateContextMenu(visible: boolean, left: number, top: number): void;
+    onAddZLayer(): void;
+    onSwitchZLayer(cur: number): void;
 }
 
 function mapStateToProps(state: CombinedState): StateToProps {
@@ -90,11 +106,17 @@ function mapStateToProps(state: CombinedState): StateToProps {
                     data: frameData,
                     number: frame,
                 },
+                frameAngles,
             },
             annotations: {
                 states: annotations,
                 activatedStateID,
                 selectedStatesID,
+                zLayer: {
+                    cur: curZLayer,
+                    min: minZLayer,
+                    max: maxZLayer,
+                },
             },
             sidebarCollapsed,
         },
@@ -104,6 +126,10 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 gridSize,
                 gridColor,
                 gridOpacity,
+                brightnessLevel,
+                contrastLevel,
+                saturationLevel,
+                resetZoom,
             },
             shapes: {
                 opacity,
@@ -119,6 +145,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         canvasInstance,
         jobInstance,
         frameData,
+        frameAngle: frameAngles[frame - jobInstance.startFrame],
         frame,
         activatedStateID,
         selectedStatesID,
@@ -133,6 +160,13 @@ function mapStateToProps(state: CombinedState): StateToProps {
         gridOpacity,
         activeLabelID,
         activeObjectType,
+        brightnessLevel,
+        contrastLevel,
+        saturationLevel,
+        resetZoom,
+        curZLayer,
+        minZLayer,
+        maxZLayer,
     };
 }
 
@@ -192,6 +226,12 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         },
         onUpdateContextMenu(visible: boolean, left: number, top: number): void {
             dispatch(updateCanvasContextMenu(visible, left, top));
+        },
+        onAddZLayer(): void {
+            dispatch(addZLayer());
+        },
+        onSwitchZLayer(cur: number): void {
+            dispatch(switchZLayer(cur));
         },
     };
 }

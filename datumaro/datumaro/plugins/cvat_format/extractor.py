@@ -9,10 +9,10 @@ import xml.etree as ET
 
 from datumaro.components.extractor import (SourceExtractor,
     DEFAULT_SUBSET_NAME, DatasetItem,
-    AnnotationType, Points, Polygon, PolyLine, Bbox,
+    AnnotationType, Points, Polygon, PolyLine, Bbox, Label,
     LabelCategories
 )
-from datumaro.util.image import lazy_image
+from datumaro.util.image import Image
 
 from .format import CvatPath
 
@@ -67,12 +67,14 @@ class CvatExtractor(SourceExtractor):
         context = ET.ElementTree.iterparse(path, events=("start", "end"))
         context = iter(context)
 
-        categories = cls._parse_meta(context)
+        categories, frame_size = cls._parse_meta(context)
 
         items = OrderedDict()
 
         track = None
         shape = None
+        tag = None
+        attributes = None
         image = None
         for ev, el in context:
             if ev == 'start':
@@ -81,23 +83,36 @@ class CvatExtractor(SourceExtractor):
                         'id': el.attrib.get('id'),
                         'label': el.attrib.get('label'),
                         'group': int(el.attrib.get('group_id', 0)),
+                        'height': frame_size[0],
+                        'width': frame_size[1],
                     }
                 elif el.tag == 'image':
                     image = {
                         'name': el.attrib.get('name'),
                         'frame': el.attrib['id'],
+                        'width': el.attrib.get('width'),
+                        'height': el.attrib.get('height'),
                     }
                 elif el.tag in cls._SUPPORTED_SHAPES and (track or image):
+                    attributes = {}
                     shape = {
                         'type': None,
-                        'attributes': {},
+                        'attributes': attributes,
                     }
                     if track:
                         shape.update(track)
                     if image:
                         shape.update(image)
+                elif el.tag == 'tag' and image:
+                    attributes = {}
+                    tag = {
+                        'frame': image['frame'],
+                        'attributes': attributes,
+                        'group': int(el.attrib.get('group_id', 0)),
+                        'label': el.attrib['label'],
+                    }
             elif ev == 'end':
-                if el.tag == 'attribute' and shape is not None:
+                if el.tag == 'attribute' and attributes is not None:
                     attr_value = el.text
                     if el.text in ['true', 'false']:
                         attr_value = attr_value == 'true'
@@ -106,7 +121,7 @@ class CvatExtractor(SourceExtractor):
                             attr_value = float(attr_value)
                         except Exception:
                             pass
-                    shape['attributes'][el.attrib['name']] = attr_value
+                    attributes[el.attrib['name']] = attr_value
                 elif el.tag in cls._SUPPORTED_SHAPES:
                     if track is not None:
                         shape['frame'] = el.attrib['frame']
@@ -130,18 +145,28 @@ class CvatExtractor(SourceExtractor):
                         for pair in el.attrib['points'].split(';'):
                             shape['points'].extend(map(float, pair.split(',')))
 
-                    frame_desc = items.get(shape['frame'], {
-                        'name': shape.get('name'),
-                        'annotations': [],
-                    })
+                    frame_desc = items.get(shape['frame'], {'annotations': []})
                     frame_desc['annotations'].append(
-                        cls._parse_ann(shape, categories))
+                        cls._parse_shape_ann(shape, categories))
                     items[shape['frame']] = frame_desc
                     shape = None
 
+                elif el.tag == 'tag':
+                    frame_desc = items.get(tag['frame'], {'annotations': []})
+                    frame_desc['annotations'].append(
+                        cls._parse_tag_ann(tag, categories))
+                    items[tag['frame']] = frame_desc
+                    tag = None
                 elif el.tag == 'track':
                     track = None
                 elif el.tag == 'image':
+                    frame_desc = items.get(image['frame'], {'annotations': []})
+                    frame_desc.update({
+                        'name': image.get('name'),
+                        'height': image.get('height'),
+                        'width': image.get('width'),
+                    })
+                    items[image['frame']] = frame_desc
                     image = None
                 el.clear()
 
@@ -155,6 +180,7 @@ class CvatExtractor(SourceExtractor):
 
         categories = {}
 
+        frame_size = None
         has_z_order = False
         mode = 'annotation'
         labels = OrderedDict()
@@ -183,6 +209,10 @@ class CvatExtractor(SourceExtractor):
                 if accepted('annotations', 'meta'): pass
                 elif accepted('meta', 'task'): pass
                 elif accepted('task', 'z_order'): pass
+                elif accepted('task', 'original_size'):
+                    frame_size = [None, None]
+                elif accepted('original_size', 'height', next_state='frame_height'): pass
+                elif accepted('original_size', 'width', next_state='frame_width'): pass
                 elif accepted('task', 'labels'): pass
                 elif accepted('labels', 'label'):
                     label = { 'name': None, 'attributes': set() }
@@ -202,6 +232,11 @@ class CvatExtractor(SourceExtractor):
                 elif consumed('task', 'task'): pass
                 elif consumed('z_order', 'z_order'):
                     has_z_order = (el.text == 'True')
+                elif consumed('original_size', 'original_size'): pass
+                elif consumed('frame_height', 'height'):
+                    frame_size[0] = int(el.text)
+                elif consumed('frame_width', 'width'):
+                    frame_size[1] = int(el.text)
                 elif consumed('label_name', 'name'):
                     label['name'] = el.text
                 elif consumed('attr_name', 'name'):
@@ -231,10 +266,10 @@ class CvatExtractor(SourceExtractor):
 
         categories[AnnotationType.label] = label_cat
 
-        return categories
+        return categories, frame_size
 
     @classmethod
-    def _parse_ann(cls, ann, categories):
+    def _parse_shape_ann(cls, ann, categories):
         ann_id = ann.get('id')
         ann_type = ann['type']
 
@@ -276,28 +311,46 @@ class CvatExtractor(SourceExtractor):
         else:
             raise NotImplementedError("Unknown annotation type '%s'" % ann_type)
 
-    def _load_items(self, parsed):
-        for item_id, item_desc in parsed.items():
-            file_name = item_desc.get('name')
-            if not file_name:
-                file_name = item_id
-            image = self._find_image(file_name)
+    @classmethod
+    def _parse_tag_ann(cls, ann, categories):
+        label = ann.get('label')
+        label_id = categories[AnnotationType.label].find(label)[0]
+        group = ann.get('group')
+        attributes = ann.get('attributes')
+        return Label(label_id, attributes=attributes, group=group)
 
-            parsed[item_id] = DatasetItem(id=item_id, subset=self._subset,
-                image=image, annotations=item_desc.get('annotations', None))
+    def _load_items(self, parsed):
+        for frame_id, item_desc in parsed.items():
+            filename = item_desc.get('name')
+            if filename:
+                filename = self._find_image(filename)
+            if not filename:
+                filename = item_desc.get('name')
+            image_size = (item_desc.get('height'), item_desc.get('width'))
+            if all(image_size):
+                image_size = (int(image_size[0]), int(image_size[1]))
+            else:
+                image_size = None
+            image = None
+            if filename:
+                image = Image(path=filename, size=image_size)
+
+            parsed[frame_id] = DatasetItem(id=frame_id, subset=self._subset,
+                image=image, annotations=item_desc.get('annotations'))
         return parsed
 
     def _find_image(self, file_name):
-        search_paths = [
-            osp.join(osp.dirname(self._path), file_name)
-        ]
+        search_paths = []
         if self._images_dir:
             search_paths += [
                 osp.join(self._images_dir, file_name),
                 osp.join(self._images_dir, self._subset or DEFAULT_SUBSET_NAME,
                     file_name),
             ]
+        search_paths += [
+            osp.join(osp.dirname(self._path), file_name)
+        ]
         for image_path in search_paths:
             if osp.isfile(image_path):
-                return lazy_image(image_path)
+                return image_path
         return None

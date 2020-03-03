@@ -32,15 +32,15 @@ Canvas itself handles:
 ### API Methods
 
 ```ts
-    enum Rotation {
-        ANTICLOCKWISE90,
-        CLOCKWISE90,
+    enum RectDrawingMethod {
+        CLASSIC = 'By 2 points',
+        EXTREME_POINTS = 'By 4 points'
     }
 
     interface DrawData {
         enabled: boolean;
         shapeType?: string;
-        rectDrawingMethod?: string;
+        rectDrawingMethod?: RectDrawingMethod;
         numberOfPoints?: number;
         initialState?: any;
         crosshair?: boolean;
@@ -71,9 +71,10 @@ Canvas itself handles:
 
     interface Canvas {
         html(): HTMLDivElement;
+        setZLayer(zLayer: number | null): void;
         setup(frameData: any, objectStates: any[]): void;
         activate(clientID: number, attributeID?: number): void;
-        rotate(rotation: Rotation, remember?: boolean): void;
+        rotate(frameAngle: number): void;
         focus(clientID: number, padding?: number): void;
         fit(): void;
         grid(stepX: number, stepY: number): void;
@@ -134,22 +135,21 @@ Standard JS events are used.
     // Create an instance of a canvas
     const canvas = new window.canvas.Canvas();
 
+    console.log('Version', window.canvas.CanvasVersion);
+
     // Put canvas to a html container
     htmlContainer.appendChild(canvas.html());
     canvas.fitCanvas();
 
     // Next you can use its API methods. For example:
-    canvas.rotate(window.Canvas.Rotation.CLOCKWISE90);
+    canvas.rotate(270);
     canvas.draw({
         enabled: true,
         shapeType: 'rectangle',
         crosshair: true,
+        rectDrawingMethod: window.Canvas.RectDrawingMethod.CLASSIC,
     });
 ```
-
-## States
-
- ![](images/states.svg)
 
 ## API Reaction
 
@@ -170,3 +170,4 @@ Standard JS events are used.
 | dragCanvas() | +    | -        | -         | -       | -       | -       | +    | -    |
 | zoomCanvas() | +    | -        | -         | -       | -       | -       | -    | +    |
 | cancel()     | -    | +        | +         | +       | +       | +       | +    | +    |
+| setZLayer()  | +    | +        | +         | +       | +       | +       | +    | +    |

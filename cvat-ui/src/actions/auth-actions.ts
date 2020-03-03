@@ -1,5 +1,9 @@
+// Copyright (C) 2020 Intel Corporation
+//
+// SPDX-License-Identifier: MIT
+
+import { ActionUnion, createAction, ThunkAction } from 'utils/redux';
 import getCore from 'cvat-core';
-import { ActionUnion, createAction, ThunkAction } from '../utils/redux';
 
 const cvat = getCore();
 

@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+//
+// SPDX-License-Identifier: MIT
+
 import React from 'react';
 
 import {
@@ -14,11 +18,13 @@ import {
     Menu,
     Button,
     Modal,
+    Popover,
 } from 'antd';
 
 import Text from 'antd/lib/typography/Text';
 import { RadioChangeEvent } from 'antd/lib/radio';
 import { CheckboxChangeEvent } from 'antd/lib/checkbox';
+import ColorChanger from 'components/annotation-page/standard-workspace/objects-side-bar/color-changer';
 
 import {
     ObjectOutsideIcon,
@@ -26,6 +32,8 @@ import {
     LastIcon,
     PreviousIcon,
     NextIcon,
+    BackgroundIcon,
+    ForegroundIcon,
 } from 'icons';
 
 import {
@@ -39,6 +47,8 @@ function ItemMenu(
     remove: (() => void),
     propagate: (() => void),
     createURL: (() => void),
+    toBackground: (() => void),
+    toForeground: (() => void),
 ): JSX.Element {
     return (
         <Menu key='unique' className='cvat-object-item-menu'>
@@ -55,6 +65,18 @@ function ItemMenu(
             <Menu.Item>
                 <Button type='link' icon='block' onClick={propagate}>
                     Propagate
+                </Button>
+            </Menu.Item>
+            <Menu.Item>
+                <Button type='link' onClick={toBackground}>
+                    <Icon component={BackgroundIcon} />
+                    To background
+                </Button>
+            </Menu.Item>
+            <Menu.Item>
+                <Button type='link' onClick={toForeground}>
+                    <Icon component={ForegroundIcon} />
+                    To foreground
                 </Button>
             </Menu.Item>
             <Menu.Item>
@@ -94,6 +116,8 @@ interface ItemTopComponentProps {
     remove(): void;
     propagate(): void;
     createURL(): void;
+    toBackground(): void;
+    toForeground(): void;
 }
 
 function ItemTopComponent(props: ItemTopComponentProps): JSX.Element {
@@ -109,17 +133,19 @@ function ItemTopComponent(props: ItemTopComponentProps): JSX.Element {
         remove,
         propagate,
         createURL,
+        toBackground,
+        toForeground,
     } = props;
 
     return (
         <Row type='flex' align='middle'>
             <Col span={10}>
-                <Text style={{ fontSize: 16 }}>{clientID}</Text>
+                <Text style={{ fontSize: 12 }}>{clientID}</Text>
                 <br />
-                <Text style={{ fontSize: 10 }}>{type}</Text>
+                <Text type='secondary' style={{ fontSize: 10 }}>{type}</Text>
             </Col>
             <Col span={12}>
-                <Select value={`${labelID}`} onChange={changeLabel}>
+                <Select size='small' value={`${labelID}`} onChange={changeLabel}>
                     { labels.map((label: any): JSX.Element => (
                         <Select.Option key={label.id} value={`${label.id}`}>
                             {label.name}
@@ -130,7 +156,16 @@ function ItemTopComponent(props: ItemTopComponentProps): JSX.Element {
             <Col span={2}>
                 <Dropdown
                     placement='bottomLeft'
-                    overlay={ItemMenu(serverID, locked, copy, remove, propagate, createURL)}
+                    overlay={ItemMenu(
+                        serverID,
+                        locked,
+                        copy,
+                        remove,
+                        propagate,
+                        createURL,
+                        toBackground,
+                        toForeground,
+                    )}
                 >
                     <Icon type='more' />
                 </Dropdown>
@@ -143,9 +178,11 @@ const ItemTop = React.memo(ItemTopComponent);
 
 interface ItemButtonsComponentProps {
     objectType: ObjectType;
+    shapeType: ShapeType;
     occluded: boolean;
     outside: boolean | undefined;
     locked: boolean;
+    pinned: boolean;
     hidden: boolean;
     keyframe: boolean | undefined;
 
@@ -162,6 +199,8 @@ interface ItemButtonsComponentProps {
     unsetKeyframe(): void;
     lock(): void;
     unlock(): void;
+    pin(): void;
+    unpin(): void;
     hide(): void;
     show(): void;
 }
@@ -169,9 +208,11 @@ interface ItemButtonsComponentProps {
 function ItemButtonsComponent(props: ItemButtonsComponentProps): JSX.Element {
     const {
         objectType,
+        shapeType,
         occluded,
         outside,
         locked,
+        pinned,
         hidden,
         keyframe,
 
@@ -188,6 +229,8 @@ function ItemButtonsComponent(props: ItemButtonsComponentProps): JSX.Element {
         unsetKeyframe,
         lock,
         unlock,
+        pin,
+        unpin,
         hide,
         show,
     } = props;
@@ -197,53 +240,62 @@ function ItemButtonsComponent(props: ItemButtonsComponentProps): JSX.Element {
             <Row type='flex' align='middle' justify='space-around'>
                 <Col span={20} style={{ textAlign: 'center' }}>
                     <Row type='flex' justify='space-around'>
-                        <Col span={6}>
+                        <Col>
                             { navigateFirstKeyframe
                                 ? <Icon component={FirstIcon} onClick={navigateFirstKeyframe} />
                                 : <Icon component={FirstIcon} style={{ opacity: 0.5, pointerEvents: 'none' }} />}
                         </Col>
-                        <Col span={6}>
+                        <Col>
                             { navigatePrevKeyframe
                                 ? <Icon component={PreviousIcon} onClick={navigatePrevKeyframe} />
                                 : <Icon component={PreviousIcon} style={{ opacity: 0.5, pointerEvents: 'none' }} />}
                         </Col>
-                        <Col span={6}>
+                        <Col>
                             { navigateNextKeyframe
                                 ? <Icon component={NextIcon} onClick={navigateNextKeyframe} />
                                 : <Icon component={NextIcon} style={{ opacity: 0.5, pointerEvents: 'none' }} />}
                         </Col>
-                        <Col span={6}>
+                        <Col>
                             { navigateLastKeyframe
                                 ? <Icon component={LastIcon} onClick={navigateLastKeyframe} />
                                 : <Icon component={LastIcon} style={{ opacity: 0.5, pointerEvents: 'none' }} />}
                         </Col>
                     </Row>
                     <Row type='flex' justify='space-around'>
-                        <Col span={4}>
+                        <Col>
                             { outside
                                 ? <Icon component={ObjectOutsideIcon} onClick={unsetOutside} />
                                 : <Icon type='select' onClick={setOutside} />}
                         </Col>
-                        <Col span={4}>
+                        <Col>
                             { locked
                                 ? <Icon type='lock' onClick={unlock} />
                                 : <Icon type='unlock' onClick={lock} />}
                         </Col>
-                        <Col span={4}>
+                        <Col>
                             { occluded
                                 ? <Icon type='team' onClick={unsetOccluded} />
                                 : <Icon type='user' onClick={setOccluded} />}
                         </Col>
-                        <Col span={4}>
+                        <Col>
                             { hidden
                                 ? <Icon type='eye-invisible' onClick={show} />
                                 : <Icon type='eye' onClick={hide} />}
                         </Col>
-                        <Col span={4}>
+                        <Col>
                             { keyframe
                                 ? <Icon type='star' theme='filled' onClick={unsetKeyframe} />
                                 : <Icon type='star' onClick={setKeyframe} />}
                         </Col>
+                        {
+                            shapeType !== ShapeType.POINTS && (
+                                <Col>
+                                    { pinned
+                                        ? <Icon type='pushpin' theme='filled' onClick={unpin} />
+                                        : <Icon type='pushpin' onClick={pin} />}
+                                </Col>
+                            )
+                        }
                     </Row>
                 </Col>
             </Row>
@@ -254,21 +306,30 @@ function ItemButtonsComponent(props: ItemButtonsComponentProps): JSX.Element {
         <Row type='flex' align='middle' justify='space-around'>
             <Col span={20} style={{ textAlign: 'center' }}>
                 <Row type='flex' justify='space-around'>
-                    <Col span={8}>
+                    <Col>
                         { locked
                             ? <Icon type='lock' onClick={unlock} />
                             : <Icon type='unlock' onClick={lock} />}
                     </Col>
-                    <Col span={8}>
+                    <Col>
                         { occluded
                             ? <Icon type='team' onClick={unsetOccluded} />
                             : <Icon type='user' onClick={setOccluded} />}
                     </Col>
-                    <Col span={8}>
+                    <Col>
                         { hidden
                             ? <Icon type='eye-invisible' onClick={show} />
                             : <Icon type='eye' onClick={hide} />}
                     </Col>
+                    {
+                        shapeType !== ShapeType.POINTS && (
+                            <Col>
+                                { pinned
+                                    ? <Icon type='pushpin' theme='filled' onClick={unpin} />
+                                    : <Icon type='pushpin' onClick={pin} />}
+                            </Col>
+                        )
+                    }
                 </Row>
             </Col>
         </Row>
@@ -320,7 +381,7 @@ function ItemAttributeComponent(props: ItemAttributeComponentProps): JSX.Element
                         changeAttribute(attrID, value);
                     }}
                 >
-                    <Text strong className='cvat-text' style={{ fontSize: '1.2em' }}>
+                    <Text strong className='cvat-text'>
                         {attrName}
                     </Text>
                 </Checkbox>
@@ -336,6 +397,7 @@ function ItemAttributeComponent(props: ItemAttributeComponentProps): JSX.Element
                         <Text strong className='cvat-text'>{attrName}</Text>
                     </legend>
                     <Radio.Group
+                        size='small'
                         value={attrValue}
                         onChange={(event: RadioChangeEvent): void => {
                             changeAttribute(attrID, event.target.value);
@@ -354,12 +416,13 @@ function ItemAttributeComponent(props: ItemAttributeComponentProps): JSX.Element
         return (
             <>
                 <Col span={24}>
-                    <Text strong className='cvat-text' style={{ fontSize: '1.2em' }}>
+                    <Text strong className='cvat-text'>
                         {attrName}
                     </Text>
                 </Col>
                 <Col span={24}>
                     <Select
+                        size='small'
                         onChange={(value: string): void => {
                             changeAttribute(attrID, value);
                         }}
@@ -381,12 +444,13 @@ function ItemAttributeComponent(props: ItemAttributeComponentProps): JSX.Element
         return (
             <>
                 <Col span={24}>
-                    <Text strong className='cvat-text' style={{ fontSize: '1.2em' }}>
+                    <Text strong className='cvat-text'>
                         {attrName}
                     </Text>
                 </Col>
                 <Col span={24}>
                     <InputNumber
+                        size='small'
                         onChange={(value: number | undefined): void => {
                             if (typeof (value) !== 'undefined') {
                                 changeAttribute(attrID, `${value}`);
@@ -406,12 +470,13 @@ function ItemAttributeComponent(props: ItemAttributeComponentProps): JSX.Element
     return (
         <>
             <Col span={24}>
-                <Text strong className='cvat-text' style={{ fontSize: '1.2em' }}>
+                <Text strong className='cvat-text'>
                     {attrName}
                 </Text>
             </Col>
             <Col span={24}>
                 <Input
+                    size='small'
                     onChange={(event: React.ChangeEvent<HTMLInputElement>): void => {
                         changeAttribute(attrID, event.target.value);
                     }}
@@ -472,7 +537,7 @@ function ItemAttributesComponent(props: ItemAttributesComponentProps): JSX.Eleme
                 onChange={collapse}
             >
                 <Collapse.Panel
-                    header='Details'
+                    header={<span style={{ fontSize: '11px' }}>Details</span>}
                     key='details'
                 >
                     { sorted.map((attribute: any): JSX.Element => (
@@ -511,10 +576,12 @@ interface Props {
     occluded: boolean;
     outside: boolean | undefined;
     locked: boolean;
+    pinned: boolean;
     hidden: boolean;
     keyframe: boolean | undefined;
     attrValues: Record<number, string>;
     color: string;
+    colors: string[];
 
     labels: any[];
     attributes: any[];
@@ -528,6 +595,8 @@ interface Props {
     copy(): void;
     propagate(): void;
     createURL(): void;
+    toBackground(): void;
+    toForeground(): void;
     remove(): void;
     setOccluded(): void;
     unsetOccluded(): void;
@@ -537,16 +606,20 @@ interface Props {
     unsetKeyframe(): void;
     lock(): void;
     unlock(): void;
+    pin(): void;
+    unpin(): void;
     hide(): void;
     show(): void;
     changeLabel(labelID: string): void;
     changeAttribute(attrID: number, value: string): void;
+    changeColor(color: string): void;
     collapse(): void;
 }
 
 function objectItemsAreEqual(prevProps: Props, nextProps: Props): boolean {
     return nextProps.activated === prevProps.activated
         && nextProps.locked === prevProps.locked
+        && nextProps.pinned === prevProps.pinned
         && nextProps.occluded === prevProps.occluded
         && nextProps.outside === prevProps.outside
         && nextProps.hidden === prevProps.hidden
@@ -577,11 +650,13 @@ function ObjectItemComponent(props: Props): JSX.Element {
         occluded,
         outside,
         locked,
+        pinned,
         hidden,
         keyframe,
         attrValues,
         labelID,
         color,
+        colors,
 
         attributes,
         labels,
@@ -595,6 +670,8 @@ function ObjectItemComponent(props: Props): JSX.Element {
         copy,
         propagate,
         createURL,
+        toBackground,
+        toForeground,
         remove,
         setOccluded,
         unsetOccluded,
@@ -604,10 +681,13 @@ function ObjectItemComponent(props: Props): JSX.Element {
         unsetKeyframe,
         lock,
         unlock,
+        pin,
+        unpin,
         hide,
         show,
         changeLabel,
         changeAttribute,
+        changeColor,
         collapse,
     } = props;
 
@@ -618,57 +698,81 @@ function ObjectItemComponent(props: Props): JSX.Element {
         : 'cvat-objects-sidebar-state-item cvat-objects-sidebar-state-active-item';
 
     return (
-        <div
-            onMouseEnter={activate}
-            id={`cvat-objects-sidebar-state-item-${clientID}`}
-            className={className}
-            style={{ borderLeftStyle: 'solid', borderColor: ` ${color}` }}
-        >
-            <ItemTop
-                serverID={serverID}
-                clientID={clientID}
-                labelID={labelID}
-                labels={labels}
-                type={type}
-                locked={locked}
-                changeLabel={changeLabel}
-                copy={copy}
-                remove={remove}
-                propagate={propagate}
-                createURL={createURL}
-            />
-            <ItemButtons
-                objectType={objectType}
-                occluded={occluded}
-                outside={outside}
-                locked={locked}
-                hidden={hidden}
-                keyframe={keyframe}
-                navigateFirstKeyframe={navigateFirstKeyframe}
-                navigatePrevKeyframe={navigatePrevKeyframe}
-                navigateNextKeyframe={navigateNextKeyframe}
-                navigateLastKeyframe={navigateLastKeyframe}
-                setOccluded={setOccluded}
-                unsetOccluded={unsetOccluded}
-                setOutside={setOutside}
-                unsetOutside={unsetOutside}
-                setKeyframe={setKeyframe}
-                unsetKeyframe={unsetKeyframe}
-                lock={lock}
-                unlock={unlock}
-                hide={hide}
-                show={show}
-            />
-            { !!attributes.length
-                && (
-                    <ItemAttributes
-                        collapsed={collapsed}
-                        attributes={attributes}
-                        values={attrValues}
-                        collapse={collapse}
-                        changeAttribute={changeAttribute}
+        <div style={{ display: 'flex' }}>
+            <Popover
+                placement='left'
+                trigger='click'
+                content={(
+                    <ColorChanger
+                        onChange={changeColor}
+                        colors={colors}
                     />
                 )}
+            >
+                <div
+                    className='cvat-objects-sidebar-state-item-color'
+                    style={{ background: ` ${color}` }}
+                />
+            </Popover>
+
+            <div
+                onMouseEnter={activate}
+                id={`cvat-objects-sidebar-state-item-${clientID}`}
+                className={className}
+                style={{ borderColor: ` ${color}` }}
+            >
+                <ItemTop
+                    serverID={serverID}
+                    clientID={clientID}
+                    labelID={labelID}
+                    labels={labels}
+                    type={type}
+                    locked={locked}
+                    changeLabel={changeLabel}
+                    copy={copy}
+                    remove={remove}
+                    propagate={propagate}
+                    createURL={createURL}
+                    toBackground={toBackground}
+                    toForeground={toForeground}
+                />
+                <ItemButtons
+                    shapeType={shapeType}
+                    objectType={objectType}
+                    occluded={occluded}
+                    outside={outside}
+                    locked={locked}
+                    pinned={pinned}
+                    hidden={hidden}
+                    keyframe={keyframe}
+                    navigateFirstKeyframe={navigateFirstKeyframe}
+                    navigatePrevKeyframe={navigatePrevKeyframe}
+                    navigateNextKeyframe={navigateNextKeyframe}
+                    navigateLastKeyframe={navigateLastKeyframe}
+                    setOccluded={setOccluded}
+                    unsetOccluded={unsetOccluded}
+                    setOutside={setOutside}
+                    unsetOutside={unsetOutside}
+                    setKeyframe={setKeyframe}
+                    unsetKeyframe={unsetKeyframe}
+                    lock={lock}
+                    unlock={unlock}
+                    pin={pin}
+                    unpin={unpin}
+                    hide={hide}
+                    show={show}
+                />
+                { !!attributes.length
+                    && (
+                        <ItemAttributes
+                            collapsed={collapsed}
+                            attributes={attributes}
+                            values={attrValues}
+                            collapse={collapse}
+                            changeAttribute={changeAttribute}
+                        />
+                    )}
+            </div>
         </div>
     );
 }

@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+//
+// SPDX-License-Identifier: MIT
+
 import React from 'react';
 
 import {
@@ -59,6 +63,7 @@ interface Props {
     statesCollapsed: boolean;
     statesOrdering: StatesOrdering;
     annotationsFilters: string[];
+    annotationsFiltersHistory: string[];
     changeStatesOrdering(value: StatesOrdering): void;
     changeAnnotationsFilters(value: SelectValue): void;
     lockAllStates(): void;
@@ -72,6 +77,7 @@ interface Props {
 function ObjectListHeader(props: Props): JSX.Element {
     const {
         annotationsFilters,
+        annotationsFiltersHistory,
         statesHidden,
         statesLocked,
         statesCollapsed,
@@ -101,9 +107,12 @@ function ObjectListHeader(props: Props): JSX.Element {
                                 <span style={{ marginLeft: 5 }}>Annotations filter</span>
                             </>
                         )}
-                        dropdownStyle={{ display: 'none' }}
                         onChange={changeAnnotationsFilters}
-                    />
+                    >
+                        {annotationsFiltersHistory.map((element: string): JSX.Element => (
+                            <Select.Option key={element} value={element}>{element}</Select.Option>
+                        ))}
+                    </Select>
                 </Col>
             </Row>
             <Row type='flex' justify='space-between' align='middle'>

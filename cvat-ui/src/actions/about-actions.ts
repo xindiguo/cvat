@@ -1,5 +1,9 @@
+// Copyright (C) 2020 Intel Corporation
+//
+// SPDX-License-Identifier: MIT
+
+import { ActionUnion, createAction, ThunkAction } from 'utils/redux';
 import getCore from 'cvat-core';
-import { ActionUnion, createAction, ThunkAction } from '../utils/redux';
 
 const core = getCore();
 
@@ -17,7 +21,7 @@ const aboutActions = {
 
 export type AboutActions = ActionUnion<typeof aboutActions>;
 
-export const getAboutAsync = (): ThunkAction => async (dispatch) => {
+export const getAboutAsync = (): ThunkAction => async (dispatch): Promise<void> => {
     dispatch(aboutActions.getAbout());
 
     try {

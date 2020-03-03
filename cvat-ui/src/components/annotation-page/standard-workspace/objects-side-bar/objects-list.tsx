@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+//
+// SPDX-License-Identifier: MIT
+
 import React from 'react';
 
 import { SelectValue } from 'antd/lib/select';
@@ -14,6 +18,7 @@ interface Props {
     statesOrdering: StatesOrdering;
     sortedStatesID: number[];
     annotationsFilters: string[];
+    annotationsFiltersHistory: string[];
     changeStatesOrdering(value: StatesOrdering): void;
     changeAnnotationsFilters(value: SelectValue): void;
     lockAllStates(): void;
@@ -33,6 +38,7 @@ function ObjectListComponent(props: Props): JSX.Element {
         statesOrdering,
         sortedStatesID,
         annotationsFilters,
+        annotationsFiltersHistory,
         changeStatesOrdering,
         changeAnnotationsFilters,
         lockAllStates,
@@ -59,6 +65,7 @@ function ObjectListComponent(props: Props): JSX.Element {
                 expandAllStates={expandAllStates}
                 hideAllStates={hideAllStates}
                 showAllStates={showAllStates}
+                annotationsFiltersHistory={annotationsFiltersHistory}
             />
             <div className='cvat-objects-sidebar-states-list'>
                 { sortedStatesID.map((id: number): JSX.Element => (

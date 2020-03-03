@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+//
+// SPDX-License-Identifier: MIT
+
 import { Action, ActionCreatorsMapObject, AnyAction } from 'redux';
 import { ThunkAction as _ThunkAction } from 'redux-thunk';
 import { CombinedState } from '../reducers/interfaces';
@@ -8,7 +12,9 @@ export interface ActionWithPayload<T, P> extends Action<T> {
 
 export function createAction<T extends string>(type: T): Action<T>;
 export function createAction<T extends string, P>(type: T, payload: P): ActionWithPayload<T, P>;
-export function createAction<T extends string, P>(type: T, payload?: P) {
+export function createAction<T extends string, P>(
+    type: T, payload?: P,
+): Action<T> | ActionWithPayload<T, P> {
     return typeof payload === 'undefined' ? { type } : { type, payload };
 }
 

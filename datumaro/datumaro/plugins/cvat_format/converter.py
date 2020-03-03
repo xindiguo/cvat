@@ -113,6 +113,11 @@ class XmlAnnotationWriter:
         self.xmlgen.startElement('points', points)
         self._level += 1
 
+    def open_tag(self, tag):
+        self._indent()
+        self.xmlgen.startElement("tag", tag)
+        self._level += 1
+
     def add_attribute(self, attribute):
         self._indent()
         self.xmlgen.startElement('attribute', {'name': attribute['name']})
@@ -136,6 +141,9 @@ class XmlAnnotationWriter:
     def close_points(self):
         self._close_element('points')
 
+    def close_tag(self):
+        self._close_element('tag')
+
     def close_image(self):
         self._close_element('image')
 
@@ -157,40 +165,52 @@ class _SubsetWriter:
         self._writer.open_root()
         self._write_meta()
 
-        for item in self._extractor:
-            if self._context._save_images:
-                if item.has_image:
-                    self._save_image(item)
-                else:
-                    log.debug("Item '%s' has no image" % item.id)
-            self._write_item(item)
+        for index, item in enumerate(self._extractor):
+            self._write_item(item, index)
 
         self._writer.close_root()
 
     def _save_image(self, item):
-        image = item.image
+        image = item.image.data
         if image is None:
-            return
+            log.warning("Item '%s' has no image" % item.id)
+            return ''
 
-        image_path = osp.join(self._context._images_dir,
-            str(item.id) + CvatPath.IMAGE_EXT)
+        filename = item.image.filename
+        if filename:
+            filename = osp.splitext(filename)[0]
+        else:
+            filename = item.id
+        filename += CvatPath.IMAGE_EXT
+        image_path = osp.join(self._context._images_dir, filename)
         save_image(image_path, image)
+        return filename
 
-    def _write_item(self, item):
-        h, w = 0, 0
+    def _write_item(self, item, index):
+        image_info = OrderedDict([
+            ("id", str(_cast(item.id, int, index))),
+        ])
         if item.has_image:
-            h, w = item.image.shape[:2]
-        self._writer.open_image(OrderedDict([
-            ("id", str(item.id)),
-            ("name", str(item.id)),
-            ("width", str(w)),
-            ("height", str(h))
-        ]))
+            size = item.image.size
+            if size:
+                h, w = size
+                image_info["width"] = str(w)
+                image_info["height"] = str(h)
+
+            filename = item.image.filename
+            if self._context._save_images:
+                filename = self._save_image(item)
+            image_info["name"] = filename
+        else:
+            log.debug("Item '%s' has no image info" % item.id)
+        self._writer.open_image(image_info)
 
         for ann in item.annotations:
             if ann.type in {AnnotationType.points, AnnotationType.polyline,
                     AnnotationType.polygon, AnnotationType.bbox}:
                 self._write_shape(ann)
+            elif ann.type == AnnotationType.label:
+                self._write_tag(ann)
             else:
                 continue
 
@@ -292,6 +312,28 @@ class _SubsetWriter:
             self._writer.close_points()
         else:
             raise NotImplementedError("unknown shape type")
+
+    def _write_tag(self, label):
+        if label.label is None:
+            return
+
+        tag_data = OrderedDict([
+            ('label', self._get_label(label.label).name),
+        ])
+        if label.group:
+            tag_data['group_id'] = str(label.group)
+        self._writer.open_tag(tag_data)
+
+        for attr_name, attr_value in label.attributes.items():
+            if isinstance(attr_value, bool):
+                attr_value = 'true' if attr_value else 'false'
+            if attr_name in self._get_label(label.label).attributes:
+                self._writer.add_attribute(OrderedDict([
+                    ("name", str(attr_name)),
+                    ("value", str(attr_value)),
+                ]))
+
+        self._writer.close_tag()
 
 class _Converter:
     def __init__(self, extractor, save_dir, save_images=False):
