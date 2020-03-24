@@ -2,17 +2,14 @@
 //
 // SPDX-License-Identifier: MIT
 
-import React from 'react';
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router-dom';
 import { RouteComponentProps } from 'react-router';
 
 import AnnotationPageComponent from 'components/annotation-page/annotation-page';
-import { getJobAsync } from 'actions/annotation-actions';
+import { getJobAsync, saveLogsAsync } from 'actions/annotation-actions';
 
-import {
-    CombinedState,
-} from 'reducers/interfaces';
+import { CombinedState, Workspace } from 'reducers/interfaces';
 
 type OwnProps = RouteComponentProps<{
     tid: string;
@@ -22,10 +19,12 @@ type OwnProps = RouteComponentProps<{
 interface StateToProps {
     job: any | null | undefined;
     fetching: boolean;
+    workspace: Workspace;
 }
 
 interface DispatchToProps {
     getJob(): void;
+    saveLogs(): void;
 }
 
 function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
@@ -37,12 +36,14 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
                 instance: job,
                 fetching,
             },
+            workspace,
         },
     } = state;
 
     return {
         job: !job || jobID === job.id ? job : null,
         fetching,
+        workspace,
     };
 }
 
@@ -77,18 +78,16 @@ function mapDispatchToProps(dispatch: any, own: OwnProps): DispatchToProps {
         getJob(): void {
             dispatch(getJobAsync(taskID, jobID, initialFrame, initialFilters));
         },
+        saveLogs(): void {
+            dispatch(saveLogsAsync());
+        },
     };
 }
 
-function AnnotationPageContainer(props: StateToProps & DispatchToProps): JSX.Element {
-    return (
-        <AnnotationPageComponent {...props} />
-    );
-}
 
 export default withRouter(
     connect(
         mapStateToProps,
         mapDispatchToProps,
-    )(AnnotationPageContainer),
+    )(AnnotationPageComponent),
 );

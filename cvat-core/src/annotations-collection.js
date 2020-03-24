@@ -802,7 +802,9 @@
             let minimumState = null;
             for (const state of objectStates) {
                 checkObjectType('object state', state, null, ObjectState);
-                if (state.outside || state.hidden) continue;
+                if (state.outside || state.hidden || state.objectType === ObjectType.TAG) {
+                    continue;
+                }
 
                 const object = this.objects[state.clientID];
                 if (typeof (object) === 'undefined') {
@@ -810,9 +812,9 @@
                         'The object has not been saved yet. Call annotations.put([state]) before',
                     );
                 }
-
                 const distance = object.constructor.distance(state.points, x, y);
-                if (distance !== null && (minimumDistance === null || distance < minimumDistance)) {
+                if (distance !== null && (minimumDistance === null
+                    || distance < minimumDistance)) {
                     minimumDistance = distance;
                     minimumState = state;
                 }
@@ -862,7 +864,7 @@
                 : (frame) => frame - 1;
             for (let frame = frameFrom; predicate(frame); frame = update(frame)) {
                 // First prepare all data for the frame
-                // Consider all shapes, tags, and tracks that have keyframe here
+                // Consider all shapes, tags, and not outside tracks that have keyframe here
                 // In particular consider first and last frame as keyframes for all frames
                 const statesData = [].concat(
                     (frame in this.shapes ? this.shapes[frame] : [])
@@ -876,7 +878,10 @@
                         || frame === frameFrom
                         || frame === frameTo
                     ));
-                statesData.push(...tracks.map((track) => track.get(frame)));
+                statesData.push(
+                    ...tracks.map((track) => track.get(frame))
+                        .filter((state) => !state.outside),
+                );
 
                 // Nothing to filtering, go to the next iteration
                 if (!statesData.length) {

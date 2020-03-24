@@ -29,7 +29,7 @@ interface StateToProps {
 }
 
 interface DispatchToProps {
-    updateAnnotations(sessionInstance: any, frameNumber: number, states: any[]): void;
+    updateAnnotations(states: any[]): void;
     changeLabelColor(sessionInstance: any, frameNumber: number, label: any, color: string): void;
 }
 
@@ -68,8 +68,8 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
 
 function mapDispatchToProps(dispatch: any): DispatchToProps {
     return {
-        updateAnnotations(sessionInstance: any, frameNumber: number, states: any[]): void {
-            dispatch(updateAnnotationsAsync(sessionInstance, frameNumber, states));
+        updateAnnotations(states: any[]): void {
+            dispatch(updateAnnotationsAsync(states));
         },
         changeLabelColor(
             sessionInstance: any,
@@ -115,8 +115,11 @@ class LabelItemContainer extends React.PureComponent<Props, State> {
         let statesLocked = true;
 
         ownObjectStates.forEach((objectState: any) => {
-            statesHidden = statesHidden && objectState.hidden;
-            statesLocked = statesLocked && objectState.lock;
+            const { lock } = objectState;
+            if (!lock) {
+                statesHidden = statesHidden && objectState.hidden;
+                statesLocked = statesLocked && objectState.lock;
+            }
         });
 
         return {
@@ -159,8 +162,6 @@ class LabelItemContainer extends React.PureComponent<Props, State> {
     private switchHidden(value: boolean): void {
         const {
             updateAnnotations,
-            jobInstance,
-            frameNumber,
         } = this.props;
 
         const { ownObjectStates } = this.state;
@@ -168,14 +169,12 @@ class LabelItemContainer extends React.PureComponent<Props, State> {
             state.hidden = value;
         }
 
-        updateAnnotations(jobInstance, frameNumber, ownObjectStates);
+        updateAnnotations(ownObjectStates);
     }
 
     private switchLock(value: boolean): void {
         const {
             updateAnnotations,
-            jobInstance,
-            frameNumber,
         } = this.props;
 
         const { ownObjectStates } = this.state;
@@ -183,7 +182,7 @@ class LabelItemContainer extends React.PureComponent<Props, State> {
             state.lock = value;
         }
 
-        updateAnnotations(jobInstance, frameNumber, ownObjectStates);
+        updateAnnotations(ownObjectStates);
     }
 
     public render(): JSX.Element {

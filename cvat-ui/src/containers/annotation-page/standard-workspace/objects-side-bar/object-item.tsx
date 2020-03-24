@@ -5,6 +5,8 @@
 import React from 'react';
 import copy from 'copy-to-clipboard';
 import { connect } from 'react-redux';
+
+import { LogType } from 'cvat-logger';
 import {
     ActiveControl,
     CombinedState,
@@ -13,6 +15,7 @@ import {
 import {
     collapseObjectItems,
     changeLabelColorAsync,
+    createAnnotationsAsync,
     updateAnnotationsAsync,
     changeFrameAsync,
     removeObjectAsync,
@@ -20,9 +23,11 @@ import {
     copyShape as copyShapeAction,
     activateObject as activateObjectAction,
     propagateObject as propagateObjectAction,
+    pasteShapeAsync,
 } from 'actions/annotation-actions';
 
 import ObjectStateItemComponent from 'components/annotation-page/standard-workspace/objects-side-bar/object-item';
+
 
 interface OwnProps {
     clientID: number;
@@ -46,14 +51,15 @@ interface StateToProps {
 
 interface DispatchToProps {
     changeFrame(frame: number): void;
-    updateState(sessionInstance: any, frameNumber: number, objectState: any): void;
+    updateState(objectState: any): void;
+    createAnnotations(sessionInstance: any, frameNumber: number, state: any): void;
     collapseOrExpand(objectStates: any[], collapsed: boolean): void;
     activateObject: (activatedStateID: number | null) => void;
     removeObject: (sessionInstance: any, objectState: any) => void;
     copyShape: (objectState: any) => void;
     propagateObject: (objectState: any) => void;
     changeLabelColor(sessionInstance: any, frameNumber: number, label: any, color: string): void;
-    changeGroupColor(sessionInstance: any, frameNumber: number, group: number, color: string): void;
+    changeGroupColor(group: number, color: string): void;
 }
 
 function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
@@ -120,20 +126,24 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         changeFrame(frame: number): void {
             dispatch(changeFrameAsync(frame));
         },
-        updateState(sessionInstance: any, frameNumber: number, state: any): void {
-            dispatch(updateAnnotationsAsync(sessionInstance, frameNumber, [state]));
+        updateState(state: any): void {
+            dispatch(updateAnnotationsAsync([state]));
+        },
+        createAnnotations(sessionInstance: any, frameNumber: number, state: any): void {
+            dispatch(createAnnotationsAsync(sessionInstance, frameNumber, state));
         },
         collapseOrExpand(objectStates: any[], collapsed: boolean): void {
             dispatch(collapseObjectItems(objectStates, collapsed));
         },
         activateObject(activatedStateID: number | null): void {
-            dispatch(activateObjectAction(activatedStateID));
+            dispatch(activateObjectAction(activatedStateID, null));
         },
         removeObject(sessionInstance: any, objectState: any): void {
             dispatch(removeObjectAsync(sessionInstance, objectState, true));
         },
         copyShape(objectState: any): void {
             dispatch(copyShapeAction(objectState));
+            dispatch(pasteShapeAsync());
         },
         propagateObject(objectState: any): void {
             dispatch(propagateObjectAction(objectState));
@@ -146,13 +156,8 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         ): void {
             dispatch(changeLabelColorAsync(sessionInstance, frameNumber, label, color));
         },
-        changeGroupColor(
-            sessionInstance: any,
-            frameNumber: number,
-            group: number,
-            color: string,
-        ): void {
-            dispatch(changeGroupColorAsync(sessionInstance, frameNumber, group, color));
+        changeGroupColor(group: number, color: string): void {
+            dispatch(changeGroupColorAsync(group, color));
         },
     };
 }
@@ -289,13 +294,15 @@ class ObjectItemContainer extends React.PureComponent<Props> {
     };
 
     private lock = (): void => {
-        const { objectState } = this.props;
+        const { objectState, jobInstance } = this.props;
+        jobInstance.logger.log(LogType.lockObject, { locked: true });
         objectState.lock = true;
         this.commit();
     };
 
     private unlock = (): void => {
-        const { objectState } = this.props;
+        const { objectState, jobInstance } = this.props;
+        jobInstance.logger.log(LogType.lockObject, { locked: false });
         objectState.lock = false;
         this.commit();
     };
@@ -384,7 +391,7 @@ class ObjectItemContainer extends React.PureComponent<Props> {
             objectState.color = color;
             this.commit();
         } else if (colorBy === ColorBy.GROUP) {
-            changeGroupColor(jobInstance, frameNumber, objectState.group.id, color);
+            changeGroupColor(objectState.group.id, color);
         } else if (colorBy === ColorBy.LABEL) {
             changeLabelColor(jobInstance, frameNumber, objectState.label, color);
         }
@@ -402,7 +409,12 @@ class ObjectItemContainer extends React.PureComponent<Props> {
     };
 
     private changeAttribute = (id: number, value: string): void => {
-        const { objectState } = this.props;
+        const { objectState, jobInstance } = this.props;
+        jobInstance.logger.log(LogType.changeAttribute, {
+            id, 
+            value,
+            object_id: objectState.clientID,
+        });
         const attr: Record<number, string> = {};
         attr[id] = value;
         objectState.attributes = attr;
@@ -413,11 +425,9 @@ class ObjectItemContainer extends React.PureComponent<Props> {
         const {
             objectState,
             updateState,
-            jobInstance,
-            frameNumber,
         } = this.props;
 
-        updateState(jobInstance, frameNumber, objectState);
+        updateState(objectState);
     }
 
     public render(): JSX.Element {

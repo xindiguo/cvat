@@ -13,6 +13,7 @@ import { UsersActionTypes } from 'actions/users-actions';
 import { AboutActionTypes } from 'actions/about-actions';
 import { AnnotationActionTypes } from 'actions/annotation-actions';
 import { NotificationsActionType } from 'actions/notification-actions';
+import { BoundariesActionTypes } from 'actions/boundaries-actions';
 
 import { NotificationsState } from './interfaces';
 
@@ -50,6 +51,7 @@ const defaultState: NotificationsState = {
             starting: null,
             deleting: null,
             fetching: null,
+            canceling: null,
             metaFetching: null,
             inferenceStatusFetching: null,
         },
@@ -72,6 +74,11 @@ const defaultState: NotificationsState = {
             fetchingAnnotations: null,
             undo: null,
             redo: null,
+            search: null,
+            savingLogs: null,
+        },
+        boundaries: {
+            resetError: null,
         },
     },
     messages: {
@@ -432,7 +439,7 @@ export default function (state = defaultState, action: AnyAction): Notifications
                 },
             };
         }
-        case ModelsActionTypes.INFER_MODEL_FAILED: {
+        case ModelsActionTypes.START_INFERENCE_FAILED: {
             const { taskID } = action.payload;
             return {
                 ...state,
@@ -442,6 +449,23 @@ export default function (state = defaultState, action: AnyAction): Notifications
                         ...state.errors.models,
                         starting: {
                             message: 'Could not infer model for the '
+                                + `<a href="/tasks/${taskID}" target="_blank">task ${taskID}</a>`,
+                            reason: action.payload.error.toString(),
+                        },
+                    },
+                },
+            };
+        }
+        case ModelsActionTypes.CANCEL_INFERENCE_FAILED: {
+            const { taskID } = action.payload;
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    models: {
+                        ...state.errors.models,
+                        canceling: {
+                            message: 'Could not cancel model inference for the '
                                 + `<a href="/tasks/${taskID}" target="_blank">task ${taskID}</a>`,
                             reason: action.payload.error.toString(),
                         },
@@ -732,6 +756,51 @@ export default function (state = defaultState, action: AnyAction): Notifications
                 },
             };
         }
+        case AnnotationActionTypes.SEARCH_ANNOTATIONS_FAILED: {
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    annotation: {
+                        ...state.errors.annotation,
+                        search: {
+                            message: 'Could not execute search annotations',
+                            reason: action.payload.error.toString(),
+                        },
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.SAVE_LOGS_FAILED: {
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    annotation: {
+                        ...state.errors.annotation,
+                        savingLogs: {
+                            message: 'Could not send logs to the server',
+                            reason: action.payload.error.toString(),
+                        },
+                    },
+                },
+            };
+        }
+        case BoundariesActionTypes.THROW_RESET_ERROR: {
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    boundaries: {
+                        ...state.errors.annotation,
+                        resetError: {
+                            message: 'Could not reset the state',
+                            reason: action.payload.error.toString(),
+                        },
+                    },
+                },
+            };
+        }
         case NotificationsActionType.RESET_ERRORS: {
             return {
                 ...state,
@@ -748,10 +817,9 @@ export default function (state = defaultState, action: AnyAction): Notifications
                 },
             };
         }
+        case BoundariesActionTypes.RESET_AFTER_ERROR:
         case AuthActionTypes.LOGOUT_SUCCESS: {
-            return {
-                ...defaultState,
-            };
+            return { ...defaultState };
         }
         default: {
             return state;

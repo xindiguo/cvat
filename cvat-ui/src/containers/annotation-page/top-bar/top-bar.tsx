@@ -8,7 +8,9 @@ import { connect } from 'react-redux';
 
 import { withRouter } from 'react-router';
 import { RouteComponentProps } from 'react-router-dom';
+import { GlobalHotKeys, KeyMap } from 'react-hotkeys';
 
+import { InputNumber } from 'antd';
 import { SliderValue } from 'antd/lib/slider';
 
 import {
@@ -19,10 +21,13 @@ import {
     showStatistics as showStatisticsAction,
     undoActionAsync,
     redoActionAsync,
+    searchAnnotationsAsync,
+    changeWorkspace as changeWorkspaceAction,
+    activateObject,
 } from 'actions/annotation-actions';
 
 import AnnotationTopBarComponent from 'components/annotation-page/top-bar/top-bar';
-import { CombinedState, FrameSpeed } from 'reducers/interfaces';
+import { CombinedState, FrameSpeed, Workspace } from 'reducers/interfaces';
 
 interface StateToProps {
     jobInstance: any;
@@ -38,6 +43,7 @@ interface StateToProps {
     redoAction?: string;
     autoSave: boolean;
     autoSaveInterval: number;
+    workspace: Workspace;
 }
 
 interface DispatchToProps {
@@ -47,6 +53,8 @@ interface DispatchToProps {
     showStatistics(sessionInstance: any): void;
     undo(sessionInstance: any, frameNumber: any): void;
     redo(sessionInstance: any, frameNumber: any): void;
+    searchAnnotations(sessionInstance: any, frameFrom: any, frameTo: any): void;
+    changeWorkspace(workspace: Workspace): void;
 }
 
 function mapStateToProps(state: CombinedState): StateToProps {
@@ -72,6 +80,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
             canvas: {
                 ready: canvasIsReady,
             },
+            workspace,
         },
         settings: {
             player: {
@@ -99,6 +108,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         redoAction: history.redo[history.redo.length - 1],
         autoSave,
         autoSaveInterval,
+        workspace,
     };
 }
 
@@ -123,13 +133,26 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         redo(sessionInstance: any, frameNumber: any): void {
             dispatch(redoActionAsync(sessionInstance, frameNumber));
         },
+        searchAnnotations(sessionInstance: any, frameFrom: any, frameTo: any): void {
+            dispatch(searchAnnotationsAsync(sessionInstance, frameFrom, frameTo));
+        },
+        changeWorkspace(workspace: Workspace): void {
+            dispatch(activateObject(null, null));
+            dispatch(changeWorkspaceAction(workspace));
+        },
     };
 }
 
 type Props = StateToProps & DispatchToProps & RouteComponentProps;
 class AnnotationTopBarContainer extends React.PureComponent<Props> {
+    private inputFrameRef: React.RefObject<InputNumber>;
     private autoSaveInterval: number | undefined;
     private unblock: any;
+
+    constructor(props: Props) {
+        super(props);
+        this.inputFrameRef = React.createRef<InputNumber>();
+    }
 
     public componentDidMount(): void {
         const {
@@ -421,6 +444,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
             playing,
             saving,
             savingStatuses,
+            jobInstance,
             jobInstance: {
                 startFrame,
                 stopFrame,
@@ -428,33 +452,183 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
             frameNumber,
             undoAction,
             redoAction,
+            workspace,
+            canvasIsReady,
+            searchAnnotations,
+            changeWorkspace,
         } = this.props;
 
+        const preventDefault = (event: KeyboardEvent | undefined): void => {
+            if (event) {
+                event.preventDefault();
+            }
+        };
+
+        const keyMap = {
+            SAVE_JOB: {
+                name: 'Save the job',
+                description: 'Send all changes of annotations to the server',
+                sequence: 'ctrl+s',
+                action: 'keydown',
+            },
+            UNDO: {
+                name: 'Undo action',
+                description: 'Cancel the latest action related with objects',
+                sequence: 'ctrl+z',
+                action: 'keydown',
+            },
+            REDO: {
+                name: 'Redo action',
+                description: 'Cancel undo action',
+                sequences: ['ctrl+shift+z', 'ctrl+y'],
+                action: 'keydown',
+            },
+            NEXT_FRAME: {
+                name: 'Next frame',
+                description: 'Go to the next frame',
+                sequence: 'f',
+                action: 'keydown',
+            },
+            PREV_FRAME: {
+                name: 'Previous frame',
+                description: 'Go to the previous frame',
+                sequence: 'd',
+                action: 'keydown',
+            },
+            FORWARD_FRAME: {
+                name: 'Forward frame',
+                description: 'Go forward with a step',
+                sequence: 'v',
+                action: 'keydown',
+            },
+            BACKWARD_FRAME: {
+                name: 'Backward frame',
+                description: 'Go backward with a step',
+                sequence: 'c',
+                action: 'keydown',
+            },
+            SEARCH_FORWARD: {
+                name: 'Search forward',
+                description: 'Search the next frame that satisfies to the filters',
+                sequence: 'right',
+                action: 'keydown',
+            },
+            SEARCH_BACKWARD: {
+                name: 'Search backward',
+                description: 'Search the previous frame that satisfies to the filters',
+                sequence: 'left',
+                action: 'keydown',
+            },
+            PLAY_PAUSE: {
+                name: 'Play/pause',
+                description: 'Start/stop automatic changing frames',
+                sequence: 'space',
+                action: 'keydown',
+            },
+            FOCUS_INPUT_FRAME: {
+                name: 'Focus input frame',
+                description: 'Focus on the element to change the current frame',
+                sequences: ['`', '~'],
+                action: 'keydown',
+            },
+        };
+
+        const handlers = {
+            UNDO: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                if (undoAction) {
+                    this.undo();
+                }
+            },
+            REDO: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                if (redoAction) {
+                    this.redo();
+                }
+            },
+            SAVE_JOB: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                this.onSaveAnnotation();
+            },
+            NEXT_FRAME: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                if (canvasIsReady) {
+                    this.onNextFrame();
+                }
+            },
+            PREV_FRAME: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                if (canvasIsReady) {
+                    this.onPrevFrame();
+                }
+            },
+            FORWARD_FRAME: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                if (canvasIsReady) {
+                    this.onForward();
+                }
+            },
+            BACKWARD_FRAME: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                if (canvasIsReady) {
+                    this.onBackward();
+                }
+            },
+            SEARCH_FORWARD: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                if (frameNumber + 1 <= stopFrame && canvasIsReady) {
+                    searchAnnotations(jobInstance, frameNumber + 1, stopFrame);
+                }
+            },
+            SEARCH_BACKWARD: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                if (frameNumber - 1 >= startFrame && canvasIsReady) {
+                    searchAnnotations(jobInstance, frameNumber - 1, startFrame);
+                }
+            },
+            PLAY_PAUSE: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                this.onSwitchPlay();
+            },
+            FOCUS_INPUT_FRAME: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                if (this.inputFrameRef.current) {
+                    this.inputFrameRef.current.focus();
+                }
+            },
+        };
+
         return (
-            <AnnotationTopBarComponent
-                showStatistics={this.showStatistics}
-                onSwitchPlay={this.onSwitchPlay}
-                onSaveAnnotation={this.onSaveAnnotation}
-                onPrevFrame={this.onPrevFrame}
-                onNextFrame={this.onNextFrame}
-                onForward={this.onForward}
-                onBackward={this.onBackward}
-                onFirstFrame={this.onFirstFrame}
-                onLastFrame={this.onLastFrame}
-                onSliderChange={this.onChangePlayerSliderValue}
-                onInputChange={this.onChangePlayerInputValue}
-                onURLIconClick={this.onURLIconClick}
-                playing={playing}
-                saving={saving}
-                savingStatuses={savingStatuses}
-                startFrame={startFrame}
-                stopFrame={stopFrame}
-                frameNumber={frameNumber}
-                undoAction={undoAction}
-                redoAction={redoAction}
-                onUndoClick={this.undo}
-                onRedoClick={this.redo}
-            />
+            <>
+                <GlobalHotKeys keyMap={keyMap as any as KeyMap} handlers={handlers} allowChanges />
+                <AnnotationTopBarComponent
+                    showStatistics={this.showStatistics}
+                    onSwitchPlay={this.onSwitchPlay}
+                    onSaveAnnotation={this.onSaveAnnotation}
+                    onPrevFrame={this.onPrevFrame}
+                    onNextFrame={this.onNextFrame}
+                    onForward={this.onForward}
+                    onBackward={this.onBackward}
+                    onFirstFrame={this.onFirstFrame}
+                    onLastFrame={this.onLastFrame}
+                    onSliderChange={this.onChangePlayerSliderValue}
+                    onInputChange={this.onChangePlayerInputValue}
+                    onURLIconClick={this.onURLIconClick}
+                    changeWorkspace={changeWorkspace}
+                    workspace={workspace}
+                    playing={playing}
+                    saving={saving}
+                    savingStatuses={savingStatuses}
+                    startFrame={startFrame}
+                    stopFrame={stopFrame}
+                    frameNumber={frameNumber}
+                    inputFrameRef={this.inputFrameRef}
+                    undoAction={undoAction}
+                    redoAction={redoAction}
+                    onUndoClick={this.undo}
+                    onRedoClick={this.redo}
+                />
+            </>
         );
     }
 }

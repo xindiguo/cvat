@@ -7,11 +7,14 @@ import { AnyAction } from 'redux';
 import { Canvas, CanvasMode } from 'cvat-canvas';
 import { AnnotationActionTypes } from 'actions/annotation-actions';
 import { AuthActionTypes } from 'actions/auth-actions';
+import { BoundariesActionTypes } from 'actions/boundaries-actions';
 import {
     AnnotationState,
     ActiveControl,
     ShapeType,
     ObjectType,
+    ContextMenuType,
+    Workspace,
 } from './interfaces';
 
 const defaultState: AnnotationState = {
@@ -23,6 +26,8 @@ const defaultState: AnnotationState = {
             visible: false,
             left: 0,
             top: 0,
+            type: ContextMenuType.CANVAS_SHAPE,
+            pointID: null,
         },
         instance: new Canvas(),
         ready: false,
@@ -54,6 +59,7 @@ const defaultState: AnnotationState = {
     annotations: {
         selectedStatesID: [],
         activatedStateID: null,
+        activatedAttributeID: null,
         saving: {
             uploading: false,
             statuses: [],
@@ -61,7 +67,10 @@ const defaultState: AnnotationState = {
         collapsed: {},
         states: [],
         filters: [],
-        filtersHistory: JSON.parse(window.localStorage.getItem('filtersHistory') as string) || [],
+        filtersHistory: JSON.parse(
+            window.localStorage.getItem('filtersHistory') || '[]',
+        ),
+        resetGroupFlag: false,
         history: {
             undo: [],
             redo: [],
@@ -85,6 +94,7 @@ const defaultState: AnnotationState = {
     sidebarCollapsed: false,
     appearanceCollapsed: false,
     tabContentHeight: 0,
+    workspace: Workspace.STANDARD,
 };
 
 export default (state = defaultState, action: AnyAction): AnnotationState => {
@@ -98,6 +108,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
             };
         }
+        case BoundariesActionTypes.RESET_AFTER_ERROR:
         case AnnotationActionTypes.GET_JOB_SUCCESS: {
             const {
                 job,
@@ -147,6 +158,10 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     activeLabelID: job.task.labels[0].id,
                     activeObjectType: job.task.mode === 'interpolation' ? ObjectType.TRACK : ObjectType.SHAPE,
                 },
+                canvas: {
+                    ...state.canvas,
+                    instance: new Canvas(),
+                },
                 colors,
             };
         }
@@ -157,15 +172,6 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     ...state.job,
                     instance: undefined,
                     fetching: false,
-                },
-            };
-        }
-        case AnnotationActionTypes.CLOSE_JOB: {
-            return {
-                ...defaultState,
-                canvas: {
-                    ...defaultState.canvas,
-                    instance: new Canvas(),
                 },
             };
         }
@@ -390,7 +396,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
             };
         }
-        case AnnotationActionTypes.DRAW_SHAPE: {
+        case AnnotationActionTypes.REMEMBER_CREATED_OBJECT: {
             const {
                 shapeType,
                 labelID,
@@ -416,6 +422,21 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     activeObjectType: objectType,
                     activeShapeType: shapeType,
                     activeRectDrawingMethod: rectDrawingMethod,
+                },
+            };
+        }
+        case AnnotationActionTypes.REPEAT_DRAW_SHAPE: {
+            const { activeControl } = action.payload;
+
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    activatedStateID: null,
+                },
+                canvas: {
+                    ...state.canvas,
+                    activeControl,
                 },
             };
         }
@@ -554,6 +575,24 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
             };
         }
+        case AnnotationActionTypes.RESET_ANNOTATIONS_GROUP: {
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    resetGroupFlag: true,
+                },
+            };
+        }
+        case AnnotationActionTypes.GROUP_ANNOTATIONS: {
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    resetGroupFlag: false,
+                },
+            };
+        }
         case AnnotationActionTypes.GROUP_ANNOTATIONS_SUCCESS: {
             const {
                 states,
@@ -610,7 +649,11 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             };
         }
         case AnnotationActionTypes.ACTIVATE_OBJECT: {
-            const { activatedStateID } = action.payload;
+            const {
+                activatedStateID,
+                activatedAttributeID,
+            } = action.payload;
+
             const {
                 canvas: {
                     activeControl,
@@ -627,6 +670,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 annotations: {
                     ...state.annotations,
                     activatedStateID,
+                    activatedAttributeID,
                 },
             };
         }
@@ -662,25 +706,8 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
             };
         }
-        case AnnotationActionTypes.COPY_SHAPE: {
-            const {
-                objectState,
-            } = action.payload;
-
-            state.canvas.instance.cancel();
-            state.canvas.instance.draw({
-                enabled: true,
-                initialState: objectState,
-            });
-
-            let activeControl = ActiveControl.DRAW_RECTANGLE;
-            if (objectState.shapeType === ShapeType.POINTS) {
-                activeControl = ActiveControl.DRAW_POINTS;
-            } else if (objectState.shapeType === ShapeType.POLYGON) {
-                activeControl = ActiveControl.DRAW_POLYGON;
-            } else if (objectState.shapeType === ShapeType.POLYLINE) {
-                activeControl = ActiveControl.DRAW_POLYLINE;
-            }
+        case AnnotationActionTypes.PASTE_SHAPE: {
+            const { activeControl } = action.payload;
 
             return {
                 ...state,
@@ -691,6 +718,19 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 annotations: {
                     ...state.annotations,
                     activatedStateID: null,
+                },
+            };
+        }
+        case AnnotationActionTypes.COPY_SHAPE: {
+            const {
+                objectState,
+            } = action.payload;
+
+            return {
+                ...state,
+                drawing: {
+                    ...state.drawing,
+                    activeInitialState: objectState,
                 },
             };
         }
@@ -891,6 +931,8 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 visible,
                 left,
                 top,
+                type,
+                pointID,
             } = action.payload;
 
             return {
@@ -902,6 +944,8 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                         visible,
                         left,
                         top,
+                        type,
+                        pointID,
                     },
                 },
             };
@@ -1009,6 +1053,13 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
             };
         }
+        case AnnotationActionTypes.CHANGE_WORKSPACE: {
+            const { workspace } = action.payload;
+            return {
+                ...state,
+                workspace,
+            };
+        }
         case AnnotationActionTypes.RESET_CANVAS: {
             return {
                 ...state,
@@ -1018,10 +1069,9 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
             };
         }
+        case AnnotationActionTypes.CLOSE_JOB:
         case AuthActionTypes.LOGOUT_SUCCESS: {
-            return {
-                ...defaultState,
-            };
+            return { ...defaultState };
         }
         default: {
             return state;
