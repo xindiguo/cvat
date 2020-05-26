@@ -4,7 +4,7 @@
 
 import { AnyAction } from 'redux';
 
-import { Canvas, CanvasMode } from 'cvat-canvas';
+import { Canvas, CanvasMode } from 'cvat-canvas-wrapper';
 import { AnnotationActionTypes } from 'actions/annotation-actions';
 import { AuthActionTypes } from 'actions/auth-actions';
 import { BoundariesActionTypes } from 'actions/boundaries-actions';
@@ -35,6 +35,7 @@ const defaultState: AnnotationState = {
     },
     job: {
         labels: [],
+        requestedId: null,
         instance: null,
         attributes: {},
         fetching: false,
@@ -43,6 +44,7 @@ const defaultState: AnnotationState = {
     player: {
         frame: {
             number: 0,
+            filename: '',
             data: null,
             fetching: false,
             delay: 0,
@@ -104,6 +106,8 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 ...state,
                 job: {
                     ...state.job,
+                    instance: null,
+                    requestedId: action.payload.requestedId,
                     fetching: true,
                 },
             };
@@ -114,6 +118,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 job,
                 states,
                 frameNumber: number,
+                frameFilename: filename,
                 colors,
                 filters,
                 frameData: data,
@@ -148,6 +153,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     ...state.player,
                     frame: {
                         ...state.player.frame,
+                        filename,
                         number,
                         data,
                     },
@@ -195,9 +201,11 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             const {
                 number,
                 data,
+                filename,
                 states,
                 minZ,
                 maxZ,
+                curZ,
                 delay,
                 changeTime,
             } = action.payload;
@@ -212,6 +220,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     ...state.player,
                     frame: {
                         data,
+                        filename,
                         number,
                         fetching: false,
                         changeTime,
@@ -225,7 +234,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     zLayer: {
                         min: minZ,
                         max: maxZ,
-                        cur: maxZ,
+                        cur: curZ,
                     },
                 },
             };
@@ -267,10 +276,12 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             };
         }
         case AnnotationActionTypes.SAVE_ANNOTATIONS_SUCCESS: {
+            const { states } = action.payload;
             return {
                 ...state,
                 annotations: {
                     ...state.annotations,
+                    states,
                     saving: {
                         ...state.annotations.saving,
                         uploading: false,

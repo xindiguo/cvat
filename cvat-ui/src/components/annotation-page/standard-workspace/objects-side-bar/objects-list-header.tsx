@@ -7,9 +7,11 @@ import { Row, Col } from 'antd/lib/grid';
 import Icon from 'antd/lib/icon';
 import Select from 'antd/lib/select';
 import Text from 'antd/lib/typography/Text';
+import Tooltip from 'antd/lib/tooltip';
 
 import AnnotationsFiltersInput from 'components/annotation-page/annotations-filters-input';
 import { StatesOrdering } from 'reducers/interfaces';
+
 
 interface StatesOrderingSelectorComponentProps {
     statesOrdering: StatesOrdering;
@@ -56,6 +58,8 @@ interface Props {
     statesLocked: boolean;
     statesCollapsed: boolean;
     statesOrdering: StatesOrdering;
+    switchLockAllShortcut: string;
+    switchHiddenAllShortcut: string;
     changeStatesOrdering(value: StatesOrdering): void;
     lockAllStates(): void;
     unlockAllStates(): void;
@@ -71,6 +75,8 @@ function ObjectListHeader(props: Props): JSX.Element {
         statesLocked,
         statesCollapsed,
         statesOrdering,
+        switchLockAllShortcut,
+        switchHiddenAllShortcut,
         changeStatesOrdering,
         lockAllStates,
         unlockAllStates,
@@ -89,19 +95,25 @@ function ObjectListHeader(props: Props): JSX.Element {
             </Row>
             <Row type='flex' justify='space-between' align='middle'>
                 <Col span={2}>
-                    { statesLocked
-                        ? <Icon type='lock' onClick={unlockAllStates} />
-                        : <Icon type='unlock' onClick={lockAllStates} />}
+                    <Tooltip title={`Switch lock property for all ${switchLockAllShortcut}`}>
+                        { statesLocked
+                            ? <Icon type='lock' onClick={unlockAllStates} theme='filled' />
+                            : <Icon type='unlock' onClick={lockAllStates} />}
+                    </Tooltip>
                 </Col>
                 <Col span={2}>
-                    { statesHidden
-                        ? <Icon type='eye-invisible' onClick={showAllStates} />
-                        : <Icon type='eye' onClick={hideAllStates} />}
+                    <Tooltip title={`Switch hidden property for all ${switchHiddenAllShortcut}`}>
+                        { statesHidden
+                            ? <Icon type='eye-invisible' onClick={showAllStates} />
+                            : <Icon type='eye' onClick={hideAllStates} />}
+                    </Tooltip>
                 </Col>
                 <Col span={2}>
-                    { statesCollapsed
-                        ? <Icon type='caret-down' onClick={expandAllStates} />
-                        : <Icon type='caret-up' onClick={collapseAllStates} />}
+                    <Tooltip title='Expand/collapse all'>
+                        { statesCollapsed
+                            ? <Icon type='caret-down' onClick={expandAllStates} />
+                            : <Icon type='caret-up' onClick={collapseAllStates} />}
+                    </Tooltip>
                 </Col>
                 <StatesOrderingSelector
                     statesOrdering={statesOrdering}

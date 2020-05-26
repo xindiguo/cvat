@@ -1,5 +1,5 @@
 
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 
@@ -337,7 +337,7 @@ class _KeypointsConverter(_InstancesConverter):
                 if kp_cat is not None:
                     cat.update({
                         'keypoints': [str(l) for l in kp_cat.labels],
-                        'skeleton': [int(i) for i in kp_cat.adjacent],
+                        'skeleton': [list(map(int, j)) for j in kp_cat.joints],
                     })
             self.categories.append(cat)
 
@@ -352,8 +352,7 @@ class _KeypointsConverter(_InstancesConverter):
             instance = [points, [], None, points.get_bbox()]
             elem = super().convert_instance(instance, item)
             elem.update(self.convert_points_object(points))
-            if elem:
-                self.annotations.append(elem)
+            self.annotations.append(elem)
 
         # Create annotations for complete instance + keypoints annotations
         super().save_annotations(item)
@@ -364,9 +363,9 @@ class _KeypointsConverter(_InstancesConverter):
         solitary_points = []
 
         for g_id, group in groupby(annotations, lambda a: a.group):
-            if g_id and not cls.find_instance_anns(group):
+            if not g_id or g_id and not cls.find_instance_anns(group):
                 group = [a for a in group if a.type == AnnotationType.points]
-            solitary_points.extend(group)
+                solitary_points.extend(group)
 
         return solitary_points
 
@@ -390,7 +389,8 @@ class _KeypointsConverter(_InstancesConverter):
 
     def convert_instance(self, instance, item):
         points_ann = find(item.annotations, lambda x: \
-            x.type == AnnotationType.points and x.group == instance[0].group)
+            x.type == AnnotationType.points and \
+            instance[0].group and x.group == instance[0].group)
         if not points_ann:
             return None
 
@@ -464,8 +464,8 @@ class _Converter:
         self._save_images = save_images
 
         assert segmentation_mode is None or \
-            segmentation_mode in SegmentationMode or \
-            isinstance(segmentation_mode, str)
+            isinstance(segmentation_mode, str) or \
+            segmentation_mode in SegmentationMode
         if segmentation_mode is None:
             segmentation_mode = SegmentationMode.guess
         if isinstance(segmentation_mode, str):
@@ -514,7 +514,7 @@ class _Converter:
         filename += CocoPath.IMAGE_EXT
         path = osp.join(self._images_dir, filename)
         save_image(path, image)
-        return filename
+        return path
 
     def convert(self):
         self._make_dirs()
@@ -536,7 +536,7 @@ class _Converter:
             for item in subset:
                 filename = ''
                 if item.has_image:
-                    filename = item.image.filename
+                    filename = item.image.path
                 if self._save_images:
                     if item.has_image:
                         filename = self._save_image(item)

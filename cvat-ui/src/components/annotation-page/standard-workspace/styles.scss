@@ -12,12 +12,18 @@
     background-color: $background-color-1;
 }
 
+.cvat-objects-sidebar-filter-input {
+    width: calc(100% - 35px);
+}
+
 .cvat-objects-sidebar-sider {
     top: 0px;
     right: 0px;
     left: auto;
     background-color: $background-color-2;
     border-left: 1px solid $border-color-1;
+    border-bottom: 1px solid $border-color-1;
+    border-radius: 4px 0 0 4px;
     z-index: 2;
 }
 
@@ -102,13 +108,19 @@
     > div:nth-child(3) > div > div {
         width: 100%;
     }
-    div:last-child > div > button {
-        width: 100%;
-        &:nth-child(1) {
-            border-radius: 3px 0px 0px 3px;
+    > div:last-child {
+        span {
+            width: 100%;
         }
-        &:nth-child(2) {
-            border-radius: 0px 3px 3px 0px;
+
+        button {
+            width: 100%;
+            &:nth-child(1) {
+                border-radius: 3px 0px 0px 3px;
+            }
+            &:nth-child(2) {
+                border-radius: 0px 3px 3px 0px;
+            }
         }
     }
 }

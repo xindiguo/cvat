@@ -22,11 +22,15 @@ const defaultState: SettingsState = {
         opacity: 3,
         selectedOpacity: 30,
         blackBorders: false,
+        showBitmap: false,
+        showProjections: false,
     },
     workspace: {
         autoSave: false,
         autoSaveInterval: 15 * 60 * 1000,
         aamZoomMargin: 100,
+        automaticBordering: false,
+        showObjectsTextAlways: false,
         showAllInterpolationTracks: false,
     },
     player: {
@@ -127,6 +131,24 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 },
             };
         }
+        case SettingsActionTypes.CHANGE_SHAPES_SHOW_PROJECTIONS: {
+            return {
+                ...state,
+                shapes: {
+                    ...state.shapes,
+                    showProjections: action.payload.showProjections,
+                },
+            };
+        }
+        case SettingsActionTypes.CHANGE_SHOW_UNLABELED_REGIONS: {
+            return {
+                ...state,
+                shapes: {
+                    ...state.shapes,
+                    showBitmap: action.payload.showBitmap,
+                },
+            };
+        }
         case SettingsActionTypes.CHANGE_FRAME_STEP: {
             return {
                 ...state,
@@ -217,18 +239,36 @@ export default (state = defaultState, action: AnyAction): SettingsState => {
                 },
             };
         }
-        case AnnotationActionTypes.GET_JOB_SUCCESS: {
-            const { job } = action.payload;
-
+        case SettingsActionTypes.SWITCH_SHOWING_OBJECTS_TEXT_ALWAYS: {
             return {
                 ...state,
-                player: {
-                    ...state.player,
-                    resetZoom: job && job.task.mode === 'annotation',
+                workspace: {
+                    ...state.workspace,
+                    showObjectsTextAlways: action.payload.showObjectsTextAlways,
+                },
+            };
+        }
+        case SettingsActionTypes.SWITCH_AUTOMATIC_BORDERING: {
+            return {
+                ...state,
+                workspace: {
+                    ...state.workspace,
+                    automaticBordering: action.payload.automaticBordering,
                 },
             };
         }
         case BoundariesActionTypes.RESET_AFTER_ERROR:
+        case AnnotationActionTypes.GET_JOB_SUCCESS: {
+            const { job } = action.payload;
+
+            return {
+                ...defaultState,
+                player: {
+                    ...defaultState.player,
+                    resetZoom: job && job.task.mode === 'annotation',
+                },
+            };
+        }
         case AuthActionTypes.LOGOUT_SUCCESS: {
             return { ...defaultState };
         }

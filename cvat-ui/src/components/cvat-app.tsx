@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: MIT
 
-import 'antd/dist/antd.less';
+import 'antd/dist/antd.css';
 import '../styles.scss';
 import React from 'react';
 import { Switch, Route, Redirect } from 'react-router';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
-import { GlobalHotKeys, KeyMap, configure } from 'react-hotkeys';
+import { GlobalHotKeys, ExtendedKeyMapOptions, configure } from 'react-hotkeys';
 import Spin from 'antd/lib/spin';
 import Layout from 'antd/lib/layout';
 import notification from 'antd/lib/notification';
@@ -24,8 +24,9 @@ import AnnotationPageContainer from 'containers/annotation-page/annotation-page'
 import LoginPageContainer from 'containers/login-page/login-page';
 import RegisterPageContainer from 'containers/register-page/register-page';
 import HeaderContainer from 'containers/header/header';
+import { customWaViewHit } from 'utils/enviroment';
 
-import getCore from 'cvat-core';
+import getCore from 'cvat-core-wrapper';
 import { NotificationsState } from 'reducers/interfaces';
 
 interface CVATAppProps {
@@ -33,10 +34,12 @@ interface CVATAppProps {
     loadUsers: () => void;
     loadAbout: () => void;
     verifyAuthorized: () => void;
+    loadUserAgreements: () => void;
     initPlugins: () => void;
     resetErrors: () => void;
     resetMessages: () => void;
     switchShortcutsDialog: () => void;
+    keyMap: Record<string, ExtendedKeyMapOptions>;
     userInitialized: boolean;
     userFetching: boolean;
     pluginsInitialized: boolean;
@@ -50,6 +53,8 @@ interface CVATAppProps {
     installedAutoAnnotation: boolean;
     installedTFAnnotation: boolean;
     installedTFSegmentation: boolean;
+    userAgreementsFetching: boolean,
+    userAgreementsInitialized: boolean,
     notifications: NotificationsState;
     user: any;
 }
@@ -57,7 +62,7 @@ interface CVATAppProps {
 class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentProps> {
     public componentDidMount(): void {
         const core = getCore();
-        const { verifyAuthorized } = this.props;
+        const { verifyAuthorized, history } = this.props;
         configure({ ignoreRepeatedEventsWhenKeyHeldDown: false });
 
         // Logger configuration
@@ -66,6 +71,11 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
             userActivityCallback.forEach((handler) => handler());
         });
         core.logger.configure(() => window.document.hasFocus, userActivityCallback);
+
+        customWaViewHit(location.pathname, location.search, location.hash);
+        history.listen((location) => {
+            customWaViewHit(location.pathname, location.search, location.hash);
+        });
 
         verifyAuthorized();
     }
@@ -76,6 +86,7 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
             loadFormats,
             loadUsers,
             loadAbout,
+            loadUserAgreements,
             initPlugins,
             userInitialized,
             userFetching,
@@ -88,6 +99,8 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
             pluginsInitialized,
             pluginsFetching,
             user,
+            userAgreementsFetching,
+            userAgreementsInitialized,
         } = this.props;
 
         this.showErrors();
@@ -95,6 +108,11 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
 
         if (!userInitialized && !userFetching) {
             verifyAuthorized();
+            return;
+        }
+
+        if (!userAgreementsInitialized && !userAgreementsFetching) {
+            loadUserAgreements();
             return;
         }
 
@@ -209,6 +227,7 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
             switchShortcutsDialog,
             user,
             history,
+            keyMap,
         } = this.props;
 
         const readyForRender = (userInitialized && user == null)
@@ -218,19 +237,9 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
         const withModels = installedAutoAnnotation
             || installedTFAnnotation || installedTFSegmentation;
 
-        const keyMap = {
-            SWITCH_SHORTCUTS: {
-                name: 'Show shortcuts',
-                description: 'Open/hide the list of available shortcuts',
-                sequence: 'f1',
-                action: 'keydown',
-            },
-            OPEN_SETTINGS: {
-                name: 'Open settings',
-                description: 'Go to the settings page or go back',
-                sequence: 'f2',
-                action: 'keydown',
-            },
+        const subKeyMap = {
+            SWITCH_SHORTCUTS: keyMap.SWITCH_SHORTCUTS,
+            OPEN_SETTINGS: keyMap.OPEN_SETTINGS,
         };
 
         const handlers = {
@@ -262,7 +271,7 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
                             <HeaderContainer> </HeaderContainer>
                             <Layout.Content>
                                 <ShorcutsDialog />
-                                <GlobalHotKeys keyMap={keyMap as KeyMap} handlers={handlers}>
+                                <GlobalHotKeys keyMap={subKeyMap} handlers={handlers}>
                                     <Switch>
                                         <Route exact path='/settings' component={SettingsPageContainer} />
                                         <Route exact path='/tasks' component={TasksPageContainer} />

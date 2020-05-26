@@ -444,6 +444,75 @@ class VocConverterTest(TestCase):
                 VocSegmentationConverter(label_map='voc'), test_dir,
                 target_dataset=DstExtractor())
 
+    def test_can_save_voc_segm_unpainted(self):
+        class TestExtractor(TestExtractorBase):
+            def __iter__(self):
+                return iter([
+                    DatasetItem(id=1, subset='a', annotations=[
+                        # overlapping masks, the first should be truncated
+                        # the second and third are different instances
+                        Mask(image=np.array([[0, 1, 1, 1, 0]]), label=4,
+                            z_order=1),
+                        Mask(image=np.array([[1, 1, 0, 0, 0]]), label=3,
+                            z_order=2),
+                        Mask(image=np.array([[0, 0, 0, 1, 0]]), label=3,
+                            z_order=2),
+                    ]),
+                ])
+
+        class DstExtractor(TestExtractorBase):
+            def __iter__(self):
+                return iter([
+                    DatasetItem(id=1, subset='a', annotations=[
+                        Mask(image=np.array([[0, 0, 1, 0, 0]]), label=4,
+                            group=1),
+                        Mask(image=np.array([[1, 1, 0, 0, 0]]), label=3,
+                            group=2),
+                        Mask(image=np.array([[0, 0, 0, 1, 0]]), label=3,
+                            group=3),
+                    ]),
+                ])
+
+        with TestDir() as test_dir:
+            self._test_save_and_load(TestExtractor(),
+                VocSegmentationConverter(label_map='voc', apply_colormap=False),
+                test_dir, target_dataset=DstExtractor())
+
+    def test_can_save_voc_segm_with_many_instances(self):
+        def bit(x, y, shape):
+            mask = np.zeros(shape)
+            mask[y, x] = 1
+            return mask
+
+        class TestExtractor(TestExtractorBase):
+            def __iter__(self):
+                return iter([
+                    DatasetItem(id=1, subset='a', annotations=[
+                        Mask(image=bit(x, y, shape=[10, 10]),
+                            label=self._label(VOC.VocLabel(3).name),
+                            z_order=10 * y + x + 1
+                        )
+                        for y in range(10) for x in range(10)
+                    ]),
+                ])
+
+        class DstExtractor(TestExtractorBase):
+            def __iter__(self):
+                return iter([
+                    DatasetItem(id=1, subset='a', annotations=[
+                        Mask(image=bit(x, y, shape=[10, 10]),
+                            label=self._label(VOC.VocLabel(3).name),
+                            group=10 * y + x + 1
+                        )
+                        for y in range(10) for x in range(10)
+                    ]),
+                ])
+
+        with TestDir() as test_dir:
+            self._test_save_and_load(TestExtractor(),
+                VocSegmentationConverter(label_map='voc'), test_dir,
+                target_dataset=DstExtractor())
+
     def test_can_save_voc_layout(self):
         class TestExtractor(TestExtractorBase):
             def __iter__(self):
@@ -649,7 +718,7 @@ class VocConverterTest(TestCase):
 
             def categories(self):
                 label_cat = LabelCategories()
-                label_cat.add('label_1')
+                label_cat.add('Label_1') # should become lowercase
                 label_cat.add('label_2')
                 return {
                     AnnotationType.label: label_cat,

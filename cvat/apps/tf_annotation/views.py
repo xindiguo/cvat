@@ -1,5 +1,5 @@
 
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 
@@ -7,13 +7,12 @@ from django.http import HttpResponse, JsonResponse, HttpResponseBadRequest
 from rest_framework.decorators import api_view
 from rules.contrib.views import permission_required, objectgetter
 from cvat.apps.authentication.decorators import login_required
+from cvat.apps.dataset_manager.task import put_task_data
 from cvat.apps.engine.models import Task as TaskModel
 from cvat.apps.engine.serializers import LabeledDataSerializer
-from cvat.apps.engine.annotation import put_task_data
+from cvat.apps.engine.frame_provider import FrameProvider
 
 import django_rq
-import fnmatch
-import json
 import os
 import rq
 
@@ -91,7 +90,7 @@ def run_inference_engine_annotation(image_list, labels_mapping, treshold):
     return result
 
 
-def run_tensorflow_annotation(image_list, labels_mapping, treshold):
+def run_tensorflow_annotation(frame_provider, labels_mapping, treshold):
     def _normalize_box(box, w, h):
         xmin = int(box[1] * w)
         ymin = int(box[0] * h)
@@ -117,17 +116,18 @@ def run_tensorflow_annotation(image_list, labels_mapping, treshold):
             config = tf.ConfigProto()
             config.gpu_options.allow_growth=True
             sess = tf.Session(graph=detection_graph, config=config)
-            for image_num, image_path in enumerate(image_list):
+            frames = frame_provider.get_frames(frame_provider.Quality.ORIGINAL)
+            for image_num, (image, _) in enumerate(frames):
 
                 job.refresh()
                 if 'cancel' in job.meta:
                     del job.meta['cancel']
                     job.save()
                     return None
-                job.meta['progress'] = image_num * 100 / len(image_list)
+                job.meta['progress'] = image_num * 100 / len(frame_provider)
                 job.save_meta()
 
-                image = Image.open(image_path)
+                image = Image.open(image)
                 width, height = image.size
                 if width > 1920 or height > 1080:
                     image = image.resize((width // 2, height // 2), Image.ANTIALIAS)
@@ -153,20 +153,6 @@ def run_tensorflow_annotation(image_list, labels_mapping, treshold):
             sess.close()
             del sess
     return result
-
-
-def make_image_list(path_to_data):
-    def get_image_key(item):
-        return int(os.path.splitext(os.path.basename(item))[0])
-
-    image_list = []
-    for root, dirnames, filenames in os.walk(path_to_data):
-        for filename in fnmatch.filter(filenames, '*.jpg'):
-                image_list.append(os.path.join(root, filename))
-
-    image_list.sort(key=get_image_key)
-    return image_list
-
 
 def convert_to_cvat_format(data):
     result = {
@@ -202,7 +188,7 @@ def create_thread(tid, labels_mapping, user):
         # Get job indexes and segment length
         db_task = TaskModel.objects.get(pk=tid)
         # Get image list
-        image_list = make_image_list(db_task.get_data_dirname())
+        image_list = FrameProvider(db_task.data)
 
         # Run auto annotation by tf
         result = None
@@ -217,7 +203,7 @@ def create_thread(tid, labels_mapping, user):
         result = convert_to_cvat_format(result)
         serializer = LabeledDataSerializer(data = result)
         if serializer.is_valid(raise_exception=True):
-            put_task_data(tid, user, result)
+            put_task_data(tid, result)
         slogger.glob.info('tf annotation for task {} done'.format(tid))
     except Exception as ex:
         try:
